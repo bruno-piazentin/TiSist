@@ -99,6 +99,7 @@ function MenuUsuario({ usuario, online, filaQtd, onSair }: { usuario: Usuario; o
             <button role="menuitem" onClick={() => ir('/parametros')}><Ic.parametros tamanho={18} />Parâmetros</button>
           </div>
           <button className="usuario-sair" role="menuitem" onClick={() => { setAberto(false); onSair(); }}><Ic.sair tamanho={18} />Sair</button>
+          <div className="usuario-versao">SisTI {__SISTI_VERSAO__} · {__SISTI_BUILD__.split('-').reverse().join('/')}</div>
         </div>
       )}
     </div>

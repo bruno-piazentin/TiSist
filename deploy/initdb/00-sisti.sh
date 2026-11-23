@@ -4,10 +4,8 @@
 set -eu
 PSQL="psql -v ON_ERROR_STOP=1 -q --username $POSTGRES_USER --dbname $POSTGRES_DB"
 
-for f in 01_schema.sql 02_regras.sql 04_app.sql 06_fornecedor_detalhes.sql 07_base_producao.sql 08_agenda.sql; do
-  echo ">> SisTI: $f"
-  $PSQL -1 -f "/sql/$f"
-done
+# Estrutura e dados base: os mesmos scripts que "sisti atualizar" aplica (db/migracoes.txt)
+sh /sql/migrar.sh
 
 if [ -z "${ADMIN_SENHA:-}" ]; then
   echo "ERRO: defina ADMIN_SENHA no .env.producao (primeira inicialização)" >&2

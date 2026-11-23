@@ -1,0 +1,11 @@
+# Scripts de banco do SisTI, na ordem em que devem ser aplicados.
+# Cada script roda UMA vez por banco (o controle fica na tabela public.sisti_migracao).
+# Para mudar o banco numa versão nova: crie db/NN_descricao.sql e acrescente o nome no FIM desta lista.
+# Nunca altere nem reordene um script já publicado: crie outro.
+01_schema.sql
+02_regras.sql
+04_app.sql
+06_fornecedor_detalhes.sql
+07_base_producao.sql
+08_agenda.sql
+09_carga_unidades.sql

@@ -50,7 +50,7 @@ ok "$(docker --version)"
 azul "Baixando o SisTI em $DIR"
 ORIGEM="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
 if [[ -d "$DIR/.git" ]]; then
-  git -C "$DIR" pull --ff-only -q && ok "código atualizado"
+  ok "código já presente"
 elif [[ -n "$ORIGEM" && -f "$ORIGEM/docker-compose.producao.yml" && "$ORIGEM" != "$DIR" ]]; then
   mkdir -p "$DIR" && cp -a "$ORIGEM/." "$DIR/" && ok "copiado de $ORIGEM"
 elif [[ ! -f "$DIR/docker-compose.producao.yml" ]]; then
@@ -58,7 +58,19 @@ elif [[ ! -f "$DIR/docker-compose.producao.yml" ]]; then
   ok "baixado de $REPO"
 fi
 cd "$DIR"
-chmod +x deploy/*.sh deploy/initdb/*.sh 2>/dev/null || true
+# Instala a última versão publicada (tag vX.Y.Z) ou a indicada em SISTI_VERSAO; sem tags, o código mais recente
+if [[ -d .git ]]; then
+  git config core.fileMode false
+  git fetch -q --tags origin 2>/dev/null || true
+  ALVO="${SISTI_VERSAO:-$(git tag -l "v*" --sort=-v:refname | head -1)}"
+  if [[ -n "$ALVO" ]]; then
+    git -c advice.detachedHead=false checkout -q "$ALVO" || erro "não consegui mudar para $ALVO (arquivos alterados à mão? veja: git -C $DIR status)"
+    ok "versão $ALVO"
+  else
+    git pull --ff-only -q 2>/dev/null || true; ok "código mais recente (nenhuma versão publicada)"
+  fi
+fi
+chmod +x deploy/*.sh deploy/initdb/*.sh db/*.sh 2>/dev/null || true
 
 # ---------------------------------------------------------------------
 PRIMEIRA=0
@@ -124,6 +136,9 @@ for _ in $(seq 1 60); do
 done
 echo
 "${DC[@]}" ps --format '    {{.Service}}: {{.Status}}'
+
+azul "Banco de dados"
+"${DC[@]}" exec -T db sh /sql/migrar.sh | sed "s/^/    /" || erro "falha ao atualizar o banco (veja: sisti logs db)"
 
 # Senha inicial ainda no arquivo = instalação nova (ou interrompida antes do fim): confere o banco,
 # mostra a senha no resumo e apaga do servidor

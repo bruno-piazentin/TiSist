@@ -34,7 +34,8 @@ Ele também instala o comando `sisti`:
 | --- | --- |
 | `sisti status` | Situação dos serviços |
 | `sisti logs app` | Log da aplicação |
-| `sisti atualizar` | Instala a versão nova do GitHub |
+| `sisti versao` | Versão instalada e versões publicadas |
+| `sisti atualizar` | Instala a última versão publicada (faz backup antes) |
 | `sisti backup` / `sisti backups` | Faz um backup agora / lista os backups |
 | `sisti restaurar ARQUIVO` | Restaura um backup (pede confirmação) |
 | `sisti certificado` | Exporta de novo o certificado |
@@ -170,20 +171,38 @@ Em um servidor novo, o procedimento é o mesmo:
 
 **Teste a restauração uma vez por trimestre**, num servidor de homologação.
 
-## 8. Atualizar o sistema
+## 8. Versões e atualização
 
-```bash
-cd sisti
-git pull
-docker compose -f docker-compose.producao.yml --env-file .env.producao up -d --build
-```
+Cada entrega do SisTI recebe um número de versão (ex.: `v1.2.0`), publicado como *Release* no GitHub com a lista do que mudou. O histórico completo fica em [CHANGELOG.md](../CHANGELOG.md). A versão instalada aparece no menu do usuário, no canto superior direito.
 
-Se a atualização trouxer um novo arquivo em `db/`, rode esse arquivo no banco antes do `up` (as notas da versão vão indicar). Por exemplo:
-```bash
-docker compose -f docker-compose.producao.yml --env-file .env.producao exec -T db psql -U sisti_owner -d sisti -v ON_ERROR_STOP=1 -f /sql/08_exemplo.sql
-```
+| Comando | O que faz |
+| --- | --- |
+| `sisti versao` | Mostra a versão instalada e as publicadas |
+| `sisti atualizar` | Instala a última versão publicada |
+| `sisti atualizar v1.1.0` | Instala uma versão específica (também serve para voltar) |
+
+O `sisti atualizar`:
+1. faz um backup do banco (`sisti-AAAAMMDD-HHMM-antes-vX.Y.Z.dump`);
+2. baixa a versão e monta o sistema novo;
+3. aplica os scripts de banco novos (lista em `db/migracoes.txt`; cada um roda uma vez só);
+4. reinicia o sistema.
 
 Os usuários recebem a nova versão ao recarregar a página.
+
+**Voltar para a versão anterior:** `sisti atualizar vX.Y.Z` com a versão anterior. Se a versão nova mudou o banco, restaure também o backup feito antes da atualização (`sisti backups` para ver o nome, `sisti restaurar ARQUIVO`). O que foi lançado no sistema depois da atualização se perde na restauração.
+
+### Publicar uma versão (desenvolvimento)
+
+1. Teste as mudanças localmente.
+2. Atualize o número em `package.json` e escreva as notas em `CHANGELOG.md`.
+3. Mudanças no banco: crie `db/NN_descricao.sql` (idempotente) e acrescente o nome no **fim** de `db/migracoes.txt`. Nunca altere um script já publicado.
+4. Commit, tag e envio:
+   ```bash
+   git commit -am "Versão 1.2.0"
+   git tag -a v1.2.0 -m "Versão 1.2.0"
+   git push origin main --tags
+   ```
+5. Crie a *Release* no GitHub a partir da tag, com as notas do CHANGELOG.
 
 ## 9. Problemas comuns
 

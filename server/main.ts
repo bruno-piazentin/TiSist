@@ -17,7 +17,7 @@ import { rotasAgenda } from './modules/agenda';
 const router = new Router();
 router.add('GET', '/api/saude', async () => {
   await pool.query('SELECT 1');
-  return { ok: true, versao: '1.0.0', hora: new Date().toISOString() };
+  return { ok: true, versao: __SISTI_VERSAO__, build: __SISTI_BUILD__, hora: new Date().toISOString() };
 }, true);
 rotasSessao(router);
 rotasCadastros(router);
