@@ -2,6 +2,11 @@
 # SISTI_DOMINIO: nome(s) de acesso, ex.: "sisti.empresa.local" ou "sisti.empresa.local, 192.168.0.20"
 # SISTI_TLS: "internal" (certificado gerado pelo próprio Caddy; instale a CA nos computadores)
 #            ou "/certs/sisti.crt /certs/sisti.key" (certificado da empresa em deploy/certs)
+# SISTI_IP: IP do servidor. Acesso por IP não informa nome (SNI); sem isto, o HTTPS pelo IP falha.
+{
+	default_sni {$SISTI_IP}
+}
+
 {$SISTI_DOMINIO} {
 	tls {$SISTI_TLS}
 	encode zstd gzip

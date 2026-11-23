@@ -52,6 +52,7 @@ services:
     environment:
       SISTI_DOMINIO: ${SISTI_DOMINIO:?Defina SISTI_DOMINIO no .env.producao}
       SISTI_TLS: ${SISTI_TLS:-internal}
+      SISTI_IP: ${SISTI_IP:-localhost}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./deploy/certs:/certs:ro

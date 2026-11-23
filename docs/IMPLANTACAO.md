@@ -191,5 +191,6 @@ Os usuários recebem a nova versão ao recarregar a página.
 | --- | --- |
 | Navegador avisa "conexão não é segura" | CA não instalada no dispositivo (passo 5) ou nome acessado diferente de `SISTI_DOMINIO` |
 | Página não abre | `ps` (todos "Up"?), firewall nas portas 443/80, registro DNS |
+| Abre pelo nome, mas não pelo IP (erro de conexão) | `SISTI_IP` no `.env.producao` com o IP do servidor, e o IP também em `SISTI_DOMINIO`. Rodar `sudo bash instalar.sh` de novo preenche os dois |
 | Erro ao entrar | `logs app` e `logs db` |
 | Backup não aparece | `logs backup` e permissão de escrita em `BACKUP_PASTA` |

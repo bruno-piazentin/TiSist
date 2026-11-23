@@ -95,6 +95,18 @@ EOF
   ok "senhas geradas em $DIR/$ENVF"
 fi
 
+# IP do servidor: sem ele o HTTPS pelo IP falha (o navegador não envia nome/SNI).
+# Também corrige instalações feitas antes desta opção existir.
+IP_SRV="${SISTI_IP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+if [[ -n "$IP_SRV" ]]; then
+  if ! grep -q '^SISTI_IP=.' "$ENVF"; then
+    sed -i '/^SISTI_IP=/d' "$ENVF"; echo "SISTI_IP=$IP_SRV" >> "$ENVF"
+  fi
+  DOMS="$(grep '^SISTI_DOMINIO=' "$ENVF" | cut -d= -f2-)"
+  [[ "$DOMS" == *"$IP_SRV"* ]] || sed -i "s/^SISTI_DOMINIO=.*/&, $IP_SRV/" "$ENVF"
+  ok "acesso também pelo IP: https://$(grep '^SISTI_IP=' "$ENVF" | cut -d= -f2-)"
+fi
+
 # ---------------------------------------------------------------------
 DC=(docker compose -f docker-compose.producao.yml --env-file "$ENVF")
 azul "Montando e iniciando (a primeira vez leva alguns minutos)"
