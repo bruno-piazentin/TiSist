@@ -29,6 +29,8 @@ tests/         api.test.mjs (38 testes de ponta a ponta)
 dist/          Build pronto (server.cjs + web/)
 ```
 
+> **Produção em servidor interno:** siga [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md) (Docker com HTTPS e backup diário).
+
 ## Como executar (servidor Linux ou Windows com Node 22)
 
 1. **Banco de dados** (PostgreSQL 16+):

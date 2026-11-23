@@ -1,0 +1,82 @@
+# SisTI em produção num servidor interno: banco + aplicação + proxy HTTPS + backup diário.
+# Uso (na pasta do projeto, ver docs/IMPLANTACAO.md):
+#   cp deploy/producao.env.exemplo .env.producao   (e preencha as senhas)
+#   docker compose -f docker-compose.producao.yml --env-file .env.producao up -d --build
+name: sisti
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sisti
+      POSTGRES_USER: sisti_owner
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:?Defina DB_OWNER_PASSWORD}
+      # usados só na primeira inicialização (banco vazio), por deploy/initdb/00-sisti.sh
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Defina DB_APP_PASSWORD}
+      ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Defina ADMIN_EMAIL}
+      ADMIN_SENHA: ${ADMIN_SENHA:-}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - dados:/var/lib/postgresql/data
+      - ./db:/sql:ro
+      - ./deploy/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sisti_owner -d sisti"]
+      interval: 10s
+      retries: 10
+    # sem "ports": o banco não fica exposto na rede
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      DATABASE_URL: postgres://sisti_app:${DB_APP_PASSWORD}@db:5432/sisti
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET (64 caracteres hex)}
+      JWT_HORAS: ${JWT_HORAS:-12}
+      LOG_REQUISICOES: ${LOG_REQUISICOES:-1}
+      PORT: "3000"
+      TZ: ${TZ:-America/Sao_Paulo}
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "5" } }
+
+  proxy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SISTI_DOMINIO: ${SISTI_DOMINIO:?Defina SISTI_DOMINIO no .env.producao}
+      SISTI_TLS: ${SISTI_TLS:-internal}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/certs:/certs:ro
+      - caddy_dados:/data
+      - caddy_config:/config
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      PGHOST: db
+      PGUSER: sisti_owner
+      PGPASSWORD: ${DB_OWNER_PASSWORD}
+      PGDATABASE: sisti
+      BACKUP_HORA: ${BACKUP_HORA:-02:00}
+      BACKUP_DIAS: ${BACKUP_DIAS:-30}
+      TZ: ${TZ:-America/Sao_Paulo}
+    volumes:
+      - ${BACKUP_PASTA:-./backups}:/backups
+      - ./deploy/backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "/backup.sh"]
+
+volumes:
+  dados:
+  caddy_dados:
+  caddy_config:

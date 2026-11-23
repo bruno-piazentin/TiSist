@@ -1,0 +1,161 @@
+# Implantação do SisTI em servidor interno
+
+Passo a passo para colocar o SisTI em produção num servidor da empresa. A instalação usa Docker e sobe quatro serviços:
+
+| Serviço | Função |
+| --- | --- |
+| `db` | PostgreSQL 16. Não fica exposto na rede |
+| `app` | Aplicação SisTI |
+| `proxy` | Caddy: HTTPS nas portas 443/80 |
+| `backup` | Cópia diária do banco, com retenção |
+
+## 1. Servidor
+
+- **Recomendado:** VM Linux (Ubuntu Server 24.04 LTS) com 2 vCPU, 4 GB de RAM e 40 GB de disco.
+- Windows Server também roda Docker, mas exige mais ajustes. Prefira Linux.
+- IP fixo na rede interna.
+- Liberar as portas **443** e **80** (TCP) no firewall para a rede das lojas. As lojas precisam alcançar o servidor por VPN ou MPLS.
+
+Instalar Docker e Git:
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER     # saia e entre de novo na sessão
+sudo apt install -y git
+```
+
+## 2. Nome de acesso (DNS)
+
+No DNS interno (geralmente o servidor AD), crie um registro **A**, por exemplo `sisti.empresa.local`, apontando para o IP do servidor. Todos vão acessar por `https://sisti.empresa.local`.
+
+## 3. Baixar e configurar
+
+```bash
+git clone https://github.com/bruno-piazentin/TiSist.git sisti
+cd sisti
+cp deploy/producao.env.exemplo .env.producao
+nano .env.producao
+```
+
+Preencha o arquivo. Gere cada senha com `openssl rand -hex 24` e o `JWT_SECRET` com `openssl rand -hex 32`.
+
+| Variável | O que é |
+| --- | --- |
+| `SISTI_DOMINIO` | Nome criado no DNS. Pode incluir o IP: `sisti.empresa.local, 192.168.0.20` |
+| `DB_OWNER_PASSWORD` / `DB_APP_PASSWORD` | Senhas do banco. Use só letras e números |
+| `JWT_SECRET` | Segredo das sessões |
+| `ADMIN_EMAIL` / `ADMIN_SENHA` | Primeiro administrador, criado na primeira subida |
+| `BACKUP_PASTA` | Onde gravar os backups (ver passo 7) |
+
+Guarde uma cópia do `.env.producao` em local seguro, como um cofre de senhas. Sem as senhas, os backups continuam restauráveis, mas a reinstalação fica mais trabalhosa.
+
+## 4. Subir
+
+```bash
+docker compose -f docker-compose.producao.yml --env-file .env.producao up -d --build
+docker compose -f docker-compose.producao.yml --env-file .env.producao ps
+```
+
+Na primeira subida, o banco é criado:
+- sem dados de demonstração;
+- com grupos de produto, categorias de falha e tipos de serviço básicos;
+- com o administrador definido no `.env.producao`.
+
+Confira nos logs:
+```bash
+docker compose -f docker-compose.producao.yml --env-file .env.producao logs db | grep SisTI
+```
+
+Depois disso:
+1. **Apague a linha `ADMIN_SENHA`** do `.env.producao`.
+2. Entre no sistema e troque a senha pelo próprio sistema.
+
+> Dica: para não repetir os parâmetros, crie um atalho:
+> `alias sisti='docker compose -f docker-compose.producao.yml --env-file .env.producao'`
+> e use `sisti ps`, `sisti logs app`, `sisti up -d --build` etc.
+
+## 5. Certificado HTTPS
+
+O HTTPS é obrigatório: sem ele, o modo offline, a fila de sincronização e a câmera não funcionam. Há duas opções.
+
+### Opção A: certificado gerado pelo próprio Caddy (`SISTI_TLS=internal`, padrão)
+
+O Caddy cria uma autoridade certificadora (CA) própria. Exporte o certificado raiz:
+```bash
+docker compose -f docker-compose.producao.yml --env-file .env.producao cp proxy:/data/caddy/pki/authorities/local/root.crt ./sisti-ca.crt
+```
+Instale `sisti-ca.crt` como **Autoridade de Certificação Raiz Confiável** nos dispositivos:
+- **Computadores do domínio:** distribua por GPO (Configuração do Computador → Políticas → Configurações do Windows → Configurações de Segurança → Políticas de Chave Pública → Autoridades de Certificação Raiz Confiáveis).
+- **Celulares e tablets Android:** Configurações → Segurança → Criptografia e credenciais → Instalar certificado → Certificado de CA.
+
+### Opção B: certificado da empresa
+
+Use esta opção se a empresa já tem uma CA interna (AD CS) ou um certificado curinga.
+1. Coloque `sisti.crt` (com a cadeia) e `sisti.key` em `deploy/certs/`.
+2. No `.env.producao`, defina `SISTI_TLS=/certs/sisti.crt /certs/sisti.key`.
+3. Rode `up -d` de novo.
+
+## 6. Primeiro acesso e carga dos dados
+
+Entre em `https://sisti.empresa.local` como administrador e cadastre, nesta ordem:
+1. **Lojas** e o CD
+2. **Departamentos**
+3. **Usuários**: perfil e lojas de cada um
+4. **Marcas**, **fabricantes** e **modelos** (os grupos já vêm prontos)
+5. **Fornecedores**
+6. **Equipamentos** (inventário)
+
+O administrador cuida da configuração. O dia a dia (chamados, movimentações) é feito pelos perfis Gestor, Coordenador e Técnico.
+
+## 7. Backup
+
+O serviço `backup` faz uma cópia ao iniciar e outra todo dia em `BACKUP_HORA`. Os arquivos ficam em `BACKUP_PASTA`, no formato `sisti-AAAAMMDD-HHMM.dump`, e as cópias com mais de `BACKUP_DIAS` dias são apagadas.
+
+**Importante:** um backup no mesmo disco do servidor não protege contra perda do servidor.
+- Aponte `BACKUP_PASTA` para um compartilhamento de rede ou NAS montado no servidor, por exemplo `/mnt/nas/sisti`.
+- Ou copie a pasta diariamente para outro local.
+
+Para conferir:
+```bash
+ls -lh backups/
+docker compose -f docker-compose.producao.yml --env-file .env.producao logs backup | tail
+```
+
+### Restaurar um backup
+
+```bash
+D="docker compose -f docker-compose.producao.yml --env-file .env.producao"
+$D stop app
+$D exec -T backup pg_restore --clean --if-exists --single-transaction -d sisti /backups/sisti-AAAAMMDD-HHMM.dump
+$D start app
+```
+
+Em um servidor novo, o procedimento é o mesmo:
+1. Faça os passos 1 a 4 usando o mesmo `.env.producao`.
+2. Copie o arquivo `.dump` para a pasta de backups.
+3. Rode os comandos acima.
+
+**Teste a restauração uma vez por trimestre**, num servidor de homologação.
+
+## 8. Atualizar o sistema
+
+```bash
+cd sisti
+git pull
+docker compose -f docker-compose.producao.yml --env-file .env.producao up -d --build
+```
+
+Se a atualização trouxer um novo arquivo em `db/`, rode esse arquivo no banco antes do `up` (as notas da versão vão indicar). Por exemplo:
+```bash
+docker compose -f docker-compose.producao.yml --env-file .env.producao exec -T db psql -U sisti_owner -d sisti -v ON_ERROR_STOP=1 -f /sql/08_exemplo.sql
+```
+
+Os usuários recebem a nova versão ao recarregar a página.
+
+## 9. Problemas comuns
+
+| Sintoma | Verificar |
+| --- | --- |
+| Navegador avisa "conexão não é segura" | CA não instalada no dispositivo (passo 5) ou nome acessado diferente de `SISTI_DOMINIO` |
+| Página não abre | `ps` (todos "Up"?), firewall nas portas 443/80, registro DNS |
+| Erro ao entrar | `logs app` e `logs db` |
+| Backup não aparece | `logs backup` e permissão de escrita em `BACKUP_PASTA` |

@@ -3,3 +3,6 @@ dist/
 .env
 .env.test
 *.log
+backups/
+.env.producao
+deploy/certs/
