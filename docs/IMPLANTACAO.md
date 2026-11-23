@@ -9,6 +9,40 @@ Passo a passo para colocar o SisTI em produção num servidor da empresa. A inst
 | `proxy` | Caddy: HTTPS nas portas 443/80 |
 | `backup` | Cópia diária do banco, com retenção |
 
+## Instalação rápida (recomendada)
+
+Num servidor Ubuntu/Debian limpo (requisitos no passo 1), rode:
+```bash
+curl -fsSL https://raw.githubusercontent.com/bruno-piazentin/TiSist/main/instalar.sh | sudo bash
+```
+Esse comando só funciona com o repositório público. Se ele for privado, faça assim:
+```bash
+git clone https://github.com/bruno-piazentin/TiSist.git && cd TiSist
+sudo bash instalar.sh
+```
+
+O instalador faz três perguntas: nome de acesso, e-mail do administrador e pasta dos backups. Depois, sozinho:
+- instala Docker e Git;
+- gera todas as senhas;
+- sobe o banco, o sistema, o HTTPS e o backup;
+- exporta o certificado para `/opt/sisti/sisti-ca.crt`;
+- mostra a **senha inicial do admin** (anote: ela não fica salva).
+
+Ele também instala o comando `sisti`:
+
+| Comando | Para quê |
+| --- | --- |
+| `sisti status` | Situação dos serviços |
+| `sisti logs app` | Log da aplicação |
+| `sisti atualizar` | Instala a versão nova do GitHub |
+| `sisti backup` / `sisti backups` | Faz um backup agora / lista os backups |
+| `sisti restaurar ARQUIVO` | Restaura um backup (pede confirmação) |
+| `sisti certificado` | Exporta de novo o certificado |
+
+Rodar o instalador de novo é seguro: ele atualiza o sistema e mantém senhas e dados.
+
+Depois da instalação, siga os passos **2** (DNS), **5** (certificado nos dispositivos), **6** (carga dos dados) e **7** (backup em outro disco). As seções abaixo detalham a instalação manual e cada etapa.
+
 ## 1. Servidor
 
 - **Recomendado:** VM Linux (Ubuntu Server 24.04 LTS) com 2 vCPU, 4 GB de RAM e 40 GB de disco.
