@@ -8,6 +8,11 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.1.2 (23/11/2026)
+
+**Implantação**
+- Acesso ao banco pelo pgAdmin via túnel SSH: a porta 5432 passa a existir só dentro do servidor (127.0.0.1), sem ficar exposta na rede. Passo a passo em docs/IMPLANTACAO.md, "Acessar o banco pelo pgAdmin".
+
 ## 1.1.1 (23/11/2026)
 
 **Correções de segurança**

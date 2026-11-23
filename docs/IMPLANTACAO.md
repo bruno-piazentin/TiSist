@@ -204,6 +204,33 @@ Os usuários recebem a nova versão ao recarregar a página.
    ```
 5. Crie a *Release* no GitHub a partir da tag, com as notas do CHANGELOG.
 
+### Acessar o banco pelo pgAdmin
+
+A porta do banco (5432) só existe dentro do servidor (`127.0.0.1`), e o acesso de fora é feito por um **túnel SSH**: o pgAdmin entra no servidor por SSH e, de lá, conecta no banco. Nenhuma porta nova fica aberta na rede.
+
+Pré-requisito: acesso SSH ao servidor (o mesmo usuário usado para administrá-lo). Confira com `ssh usuario@IP-DO-SERVIDOR`.
+
+No pgAdmin: **Register → Server**
+- **General → Name:** SisTI
+- **Connection:**
+  - Host name/address: `127.0.0.1`
+  - Port: `5432`
+  - Maintenance database: `sisti`
+  - Username: `sisti_owner`
+  - Password: valor de `DB_OWNER_PASSWORD` (veja com `sudo grep DB_OWNER_PASSWORD /opt/sisti/.env.producao`)
+- **SSH Tunnel:**
+  - Use SSH tunneling: ativado
+  - Tunnel host: IP do servidor
+  - Tunnel port: `22`
+  - Username: seu usuário SSH do servidor
+  - Authentication: Password (ou Identity file, se usar chave)
+
+As tabelas ficam no esquema **sisti** (Databases → sisti → Schemas → sisti → Tables).
+
+**Cuidado:** `sisti_owner` é o dono do banco e pode alterar qualquer dado. Use para consultas; alterações devem ser feitas pelo sistema, que registra quem fez o quê. Faça `sisti backup` antes de qualquer alteração manual.
+
+Se a porta 5432 do servidor já estiver em uso por outro programa, defina outra em `.env.producao` (ex.: `DB_PORTA_LOCAL=5433`), rode `sisti iniciar` e use essa porta no pgAdmin.
+
 ## 9. Problemas comuns
 
 | Sintoma | Verificar |
