@@ -54,7 +54,7 @@ dist/          Build pronto (server.cjs + web/)
    npm start                # http://localhost:3010 (porta definida em PORT no .env)
    ```
 3. **Docker** (alternativa): `docker compose up -d --build` (abre em http://localhost:3010; troque em `SISTI_PORTA` no .env), depois rode os scripts de `db/` no container do banco:
-   `docker compose exec db sh -c 'for f in /sql/01_schema.sql /sql/02_regras.sql /sql/04_app.sql /sql/06_fornecedor_detalhes.sql; do psql -U sisti_owner -d sisti -1 -f $f; done'`
+   `docker compose exec db sh -c 'for f in /sql/01_schema.sql /sql/02_regras.sql /sql/04_app.sql /sql/06_fornecedor_detalhes.sql /sql/08_agenda.sql; do psql -U sisti_owner -d sisti -1 -f $f; done'`
    e defina a senha do `sisti_app` igual a `DB_APP_PASSWORD`.
 
 **HTTPS é obrigatório em produção**: o service worker, a câmera e a fila offline só funcionam em `https://` (ou `localhost`). Use um proxy reverso (Nginx, Caddy ou IIS) com certificado.

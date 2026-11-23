@@ -12,6 +12,7 @@ import { rotasOrcamentos } from './modules/orcamentos';
 import { rotasCustos } from './modules/custos';
 import { rotasDashboard } from './modules/dashboard';
 import { rotasSync } from './modules/sync';
+import { rotasAgenda } from './modules/agenda';
 
 const router = new Router();
 router.add('GET', '/api/saude', async () => {
@@ -26,6 +27,7 @@ rotasOrcamentos(router);
 rotasCustos(router);
 rotasDashboard(router);
 rotasSync(router);
+rotasAgenda(router);
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost');

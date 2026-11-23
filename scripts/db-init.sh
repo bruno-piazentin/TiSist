@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../db"
 URL="${DATABASE_ADMIN_URL:?Defina DATABASE_ADMIN_URL (usuário dono do banco, não o sisti_app)}"
-for f in 01_schema.sql 02_regras.sql 04_app.sql 06_fornecedor_detalhes.sql; do
+for f in 01_schema.sql 02_regras.sql 04_app.sql 06_fornecedor_detalhes.sql 08_agenda.sql; do
   echo ">> $f"
   psql "$URL" -v ON_ERROR_STOP=1 -1 -q -f "$f"
 done

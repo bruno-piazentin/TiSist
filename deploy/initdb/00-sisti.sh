@@ -4,7 +4,7 @@
 set -eu
 PSQL="psql -v ON_ERROR_STOP=1 -q --username $POSTGRES_USER --dbname $POSTGRES_DB"
 
-for f in 01_schema.sql 02_regras.sql 04_app.sql 06_fornecedor_detalhes.sql 07_base_producao.sql; do
+for f in 01_schema.sql 02_regras.sql 04_app.sql 06_fornecedor_detalhes.sql 07_base_producao.sql 08_agenda.sql; do
   echo ">> SisTI: $f"
   $PSQL -1 -f "/sql/$f"
 done

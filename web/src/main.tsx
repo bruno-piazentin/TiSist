@@ -11,6 +11,7 @@ import { Aprovacoes } from './pages/Aprovacoes';
 import { Custos } from './pages/Custos';
 import { Cadastros, Usuarios, Parametros } from './pages/Cadastros';
 import { Fila } from './pages/Fila';
+import { Agenda } from './pages/Agenda';
 
 function Login({ onEntrar }: { onEntrar: (u: Usuario) => void }) {
   const [login, setLogin] = useState('');
@@ -54,6 +55,7 @@ function rota(caminho: string) {
     case 'usuarios': return <Usuarios />;
     case 'parametros': return <Parametros />;
     case 'fila': return <Fila />;
+    case 'agenda': return <Agenda />;
   }
   return <div className="card">Página não encontrada. <Link para="/">Voltar ao início</Link></div>;
 }
@@ -120,6 +122,7 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
             <Link para="/fila" className={ativo('/fila')}>Fila offline {(filaQtd + Number(pend.conflitos_sync || 0)) > 0 && <span className="badge">{filaQtd + Number(pend.conflitos_sync || 0)}</span>}</Link>
             <div className="nav-sec">Cadastros</div>
             <Link para="/cadastros/lojas" className={ativo('/cadastros')}>Cadastros base</Link>
+            <Link para="/agenda" className={ativo('/agenda')}>Agenda</Link>
             {pode('usuario.gerir') && <Link para="/usuarios" className={ativo('/usuarios')}>Usuários</Link>}
             <Link para="/parametros" className={ativo('/parametros')}>Parâmetros</Link>
           </nav>

@@ -55,6 +55,7 @@ const PERMISSOES = {
   'baixa.aprovar':       ['GESTOR_TI', 'COORDENADOR', 'DIRETORIA'],
   'custo.lancar':        ['COMPRAS'],
   'custo.fechar':        ['COMPRAS'],
+  'agenda.gerir':        ['GESTOR_TI', 'COORDENADOR', 'TECNICO'],
   'auditoria.ver':       ['ADMIN', 'AUDITORIA', 'DIRETORIA', 'GESTOR_TI'],
 } satisfies Record<string, Perfil[]>;
 export type Permissao = keyof typeof PERMISSOES;
