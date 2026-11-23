@@ -83,8 +83,8 @@ export function Voltar({ padrao }: { padrao: string }) {
   const voltar = () => { if (history.state?.sisti) history.back(); else irPara(padrao); };
   return <button type="button" className="btn pequeno voltar" onClick={voltar} aria-label="Voltar à tela anterior">← Voltar</button>;
 }
-export function Link({ para, children, className }: { para: string; children: ReactNode; className?: string }) {
-  return <a href={para} className={className} onClick={e => { if (e.ctrlKey || e.metaKey) return; e.preventDefault(); irPara(para); }}>{children}</a>;
+export function Link({ para, children, className, rotulo }: { para: string; children: ReactNode; className?: string; rotulo?: string }) {
+  return <a href={para} className={className} data-rotulo={rotulo} aria-label={rotulo} onClick={e => { if (e.ctrlKey || e.metaKey) return; e.preventDefault(); irPara(para); }}>{children}</a>;
 }
 
 // ---------------- carregamento de dados ----------------

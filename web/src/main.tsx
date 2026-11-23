@@ -1,6 +1,6 @@
 // Ponto de entrada do front-end: login, layout, rotas e ciclo de sincronização offline.
 import { createRoot } from 'react-dom/client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getComCache, sessao, sincronizar } from './api';
 import { aoMudarFila, cache, fila } from './offline';
 import { App, Link, PERFIL, irPara, useRota, type AppCtx, type Usuario } from './ui';
@@ -12,6 +12,7 @@ import { Custos } from './pages/Custos';
 import { Cadastros, Usuarios, Parametros } from './pages/Cadastros';
 import { Fila } from './pages/Fila';
 import { Agenda } from './pages/Agenda';
+import { Ic, type Icone as IconeT } from './icones';
 
 function Login({ onEntrar }: { onEntrar: (u: Usuario) => void }) {
   const [login, setLogin] = useState('');
@@ -60,6 +61,50 @@ function rota(caminho: string) {
   return <div className="card">Página não encontrada. <Link para="/">Voltar ao início</Link></div>;
 }
 
+const iniciais = (nome: string) => nome.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase();
+
+/** Painel do usuário no canto superior direito: nome, perfil, conexão e Sair. */
+function MenuUsuario({ usuario, online, filaQtd, onSair }: { usuario: Usuario; online: boolean; filaQtd: number; onSair: () => void }) {
+  const [aberto, setAberto] = useState(false);
+  const caixa = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!aberto) return;
+    const fora = (e: MouseEvent) => { if (!caixa.current?.contains(e.target as Node)) setAberto(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setAberto(false); };
+    document.addEventListener('mousedown', fora); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', fora); document.removeEventListener('keydown', esc); };
+  }, [aberto]);
+  const ir = (p: string) => { setAberto(false); irPara(p); };
+  const pode = (p: string) => usuario.permissoes.includes(p);
+  return (
+    <div className="usuario-menu" ref={caixa}>
+      <button className={'usuario-btn' + (aberto ? ' aberto' : '')} onClick={() => setAberto(a => !a)} aria-haspopup="menu" aria-expanded={aberto}>
+        <span className="avatar">{iniciais(usuario.nome)}<i className={online ? 'on' : 'off'} /></span>
+        <span className="usuario-txt"><strong>{usuario.nome}</strong><small>{PERFIL[usuario.perfil]}</small></span>
+        <Ic.seta tamanho={16} />
+      </button>
+      {aberto && (
+        <div className="usuario-pop" role="menu">
+          <div className="usuario-cab">
+            <span className="avatar grande">{iniciais(usuario.nome)}</span>
+            <div><strong>{usuario.nome}</strong><div className="muted small">{PERFIL[usuario.perfil]}</div></div>
+          </div>
+          <div className="usuario-status">
+            <span className={'ponto ' + (online ? 'on' : 'off')} />{online ? 'Conectado ao servidor' : 'Sem conexão'}
+            {filaQtd > 0 && <> · <a href="/fila" onClick={e => { e.preventDefault(); ir('/fila'); }}>{filaQtd} na fila</a></>}
+          </div>
+          <div className="usuario-links so-movel">
+            <button role="menuitem" onClick={() => ir('/cadastros/lojas')}><Ic.cadastros tamanho={18} />Cadastros base</button>
+            {pode('usuario.gerir') && <button role="menuitem" onClick={() => ir('/usuarios')}><Ic.usuarios tamanho={18} />Usuários</button>}
+            <button role="menuitem" onClick={() => ir('/parametros')}><Ic.parametros tamanho={18} />Parâmetros</button>
+          </div>
+          <button className="usuario-sair" role="menuitem" onClick={() => { setAberto(false); onSair(); }}><Ic.sair tamanho={18} />Sair</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   const caminho = useRota();
   const [ref, setRef] = useState<any>(null);
@@ -67,6 +112,11 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   const [filaQtd, setFilaQtd] = useState(0);
   const [pend, setPend] = useState<any>({});
   const [toasts, setToasts] = useState<{ id: number; texto: string; tipo: string }[]>([]);
+  const [recolhido, setRecolhido] = useState(() => { try { return localStorage.getItem('sisti:menu') === 'recolhido'; } catch { return false; } });
+  const alternarMenu = () => setRecolhido(r => {
+    try { localStorage.setItem('sisti:menu', r ? 'aberto' : 'recolhido'); } catch { /* sem armazenamento: só nesta sessão */ }
+    return !r;
+  });
 
   const avisar = useCallback((texto: string, tipo: 'ok' | 'erro' | 'info' = 'ok') => {
     const id = Date.now() + Math.random();
@@ -107,41 +157,64 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   const ativo = (p: string) => (p === '/' ? caminho === '/' : caminho.startsWith(p)) ? 'ativo' : '';
   const aprovacoes = Number(pend.orcamentos_pendentes || 0) + Number(pend.baixas_pendentes || 0);
 
+  const filaTotal = filaQtd + Number(pend.conflitos_sync || 0);
+  const item = (para: string, rotulo: string, Icone: IconeT, badge = 0, base = para) => (
+    <Link para={para} className={'nav-item ' + ativo(base)} rotulo={rotulo}>
+      <span className="nav-ic"><Icone />{badge > 0 && <i className="nav-ponto" />}</span>
+      <span className="nav-rot">{rotulo}</span>
+      {badge > 0 && <span className="badge">{badge}</span>}
+    </Link>
+  );
+
   return (
     <App.Provider value={ctx}>
-      <div className="app">
+      <div className={'app' + (recolhido ? ' recolhido' : '')}>
         <aside className="sidebar">
-          <div className="logo"><img src="/icon.svg" alt="" /><div>SisTI<small>Manutenção de TI</small></div></div>
-          <nav className="nav">
-            <div className="nav-sec">Operação</div>
-            <Link para="/" className={ativo('/')}>Painel</Link>
-            <Link para="/equipamentos" className={ativo('/equipamentos')}>Equipamentos</Link>
-            <Link para="/chamados" className={ativo('/chamados')}>Chamados</Link>
-            <Link para="/aprovacoes" className={ativo('/aprovacoes')}>Aprovações {aprovacoes > 0 && <span className="badge">{aprovacoes}</span>}</Link>
-            <Link para="/custos" className={ativo('/custos')}>Custos</Link>
-            <Link para="/fila" className={ativo('/fila')}>Fila offline {(filaQtd + Number(pend.conflitos_sync || 0)) > 0 && <span className="badge">{filaQtd + Number(pend.conflitos_sync || 0)}</span>}</Link>
-            <div className="nav-sec">Cadastros</div>
-            <Link para="/cadastros/lojas" className={ativo('/cadastros')}>Cadastros base</Link>
-            <Link para="/agenda" className={ativo('/agenda')}>Agenda</Link>
-            {pode('usuario.gerir') && <Link para="/usuarios" className={ativo('/usuarios')}>Usuários</Link>}
-            <Link para="/parametros" className={ativo('/parametros')}>Parâmetros</Link>
-          </nav>
-          <div className="rodape">
-            <strong>{usuario.nome}</strong>{PERFIL[usuario.perfil]}
-            <div>{online ? 'Conectado' : 'Sem conexão'}{filaQtd ? ` · ${filaQtd} na fila` : ''}</div>
-            <button onClick={onSair}>Sair</button>
+          <div className="logo">
+            <img src="/icon.svg" alt="" />
+            <div className="logo-txt">SisTI<small>Manutenção de TI</small></div>
           </div>
+          <nav className="nav">
+            <div className="nav-sec"><span>Operação</span></div>
+            {item('/', 'Painel', Ic.painel)}
+            {item('/equipamentos', 'Equipamentos', Ic.equipamentos)}
+            {item('/chamados', 'Chamados', Ic.chamados)}
+            {item('/aprovacoes', 'Aprovações', Ic.aprovacoes, aprovacoes)}
+            {item('/custos', 'Custos', Ic.custos)}
+            {item('/fila', 'Fila offline', Ic.fila, filaTotal)}
+            <div className="nav-sec"><span>Cadastros</span></div>
+            {item('/cadastros/lojas', 'Cadastros base', Ic.cadastros, 0, '/cadastros')}
+            {item('/agenda', 'Agenda', Ic.agenda)}
+            {pode('usuario.gerir') && item('/usuarios', 'Usuários', Ic.usuarios)}
+            {item('/parametros', 'Parâmetros', Ic.parametros)}
+          </nav>
+          <button className="nav-item recolher" onClick={alternarMenu} data-rotulo="Expandir menu"
+            aria-label={recolhido ? 'Expandir menu' : 'Recolher menu'} title={recolhido ? undefined : 'Recolher menu (mostrar só os ícones)'}>
+            <span className="nav-ic">{recolhido ? <Ic.expandir /> : <Ic.recolher />}</span>
+            <span className="nav-rot">Recolher menu</span>
+          </button>
         </aside>
-        <main className="main">
-          {!online && <div className="faixa-offline"><span><strong>Sem conexão.</strong> Abertura de chamado, recebimento e teste ficam na fila e serão enviados quando a conexão voltar.</span>{filaQtd > 0 && <Link para="/fila">{filaQtd} na fila</Link>}</div>}
-          {rota(caminho)}
-        </main>
+        <div className="area">
+          <header className="barra-topo">
+            <div className="logo-movel"><img src="/icon.svg" alt="" />SisTI</div>
+            <div className={'conexao ' + (online ? 'on' : 'off')} title={online ? 'Conectado ao servidor' : 'Sem conexão'}>
+              {online ? <Ic.nuvem tamanho={16} /> : <Ic.semNuvem tamanho={16} />}
+              <span>{online ? 'Conectado' : 'Sem conexão'}{filaQtd ? ` · ${filaQtd} na fila` : ''}</span>
+            </div>
+            <MenuUsuario usuario={usuario} online={online} filaQtd={filaQtd} onSair={onSair} />
+          </header>
+          <main className="main">
+            {!online && <div className="faixa-offline"><span><strong>Sem conexão.</strong> Abertura de chamado, recebimento e teste ficam na fila e serão enviados quando a conexão voltar.</span>{filaQtd > 0 && <Link para="/fila">{filaQtd} na fila</Link>}</div>}
+            {rota(caminho)}
+          </main>
+        </div>
         <nav className="menu-movel">
-          <Link para="/" className={ativo('/')}><span className="ic">◫</span>Painel</Link>
-          <Link para="/equipamentos" className={ativo('/equipamentos')}><span className="ic">▣</span>Equip.</Link>
-          <Link para="/chamados" className={ativo('/chamados')}><span className="ic">⚑</span>Chamados</Link>
-          <Link para="/aprovacoes" className={ativo('/aprovacoes')}><span className="ic">✓</span>Aprovar</Link>
-          <Link para="/fila" className={ativo('/fila')}><span className="ic">⇅</span>Fila{filaQtd ? ` (${filaQtd})` : ''}</Link>
+          <Link para="/" className={ativo('/')}><Ic.painel />Painel</Link>
+          <Link para="/equipamentos" className={ativo('/equipamentos')}><Ic.equipamentos />Equip.</Link>
+          <Link para="/chamados" className={ativo('/chamados')}><Ic.chamados />Chamados</Link>
+          <Link para="/agenda" className={ativo('/agenda')}><Ic.agenda />Agenda</Link>
+          <Link para="/aprovacoes" className={ativo('/aprovacoes')}><Ic.aprovacoes />Aprovar{aprovacoes > 0 && <i className="nav-ponto" />}</Link>
+          <Link para="/fila" className={ativo('/fila')}><Ic.fila />Fila{filaQtd ? ` (${filaQtd})` : ''}</Link>
         </nav>
       </div>
       <div className="toasts">{toasts.map(t => <div key={t.id} className={'toast ' + t.tipo}>{t.texto}</div>)}</div>

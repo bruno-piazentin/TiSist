@@ -22,7 +22,7 @@ const SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const pad = (n: number) => String(n).padStart(2, '0');
 /** Data local em AAAA-MM-DD (sem converter para UTC). */
 const isoLocal = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const dataLonga = (iso: string) => new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const dataLonga = (iso: string) => { const t = new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }); return t.charAt(0).toUpperCase() + t.slice(1); };
 const horario = (a: any) => a.hora_inicio ? a.hora_inicio + (a.hora_fim ? '–' + a.hora_fim : '') : 'Dia todo';
 
 /** 42 dias (6 semanas, começando no domingo) que cobrem o mês. */
@@ -116,7 +116,7 @@ export function Agenda() {
 
         <div className="card dia-painel">
           <div className="card-topo">
-            <h2 style={{ textTransform: 'capitalize' }}>{dataLonga(selecionado)}</h2>
+            <h2>{dataLonga(selecionado)}</h2>
           </div>
           <Carregando {...r}>{() => <>
             {doDia.length === 0 && <div className="muted" style={{ padding: '8px 0 14px' }}>Nenhum agendamento nesta data.</div>}
