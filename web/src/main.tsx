@@ -134,6 +134,12 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   }, [avisar]);
 
   useEffect(() => { recarregarRef(); }, [recarregarRef]);
+  // Pede confirmação ao fechar (ou recarregar) a aba do sistema. O texto da pergunta é do próprio navegador.
+  useEffect(() => {
+    const confirmar = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', confirmar);
+    return () => window.removeEventListener('beforeunload', confirmar);
+  }, []);
   useEffect(() => {
     const atualizar = () => fila.listar().then(l => setFilaQtd(l.length));
     atualizar();

@@ -14,22 +14,38 @@ const ESTILO = `
   table { width: 100%; border-collapse: collapse; } th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #e4e7e1; vertical-align: top; }
   th { background: #f1f3ef; font-size: 11px; } tr { page-break-inside: avoid; }
   dl { display: grid; grid-template-columns: 180px 1fr; gap: 3px 12px; margin: 0; } dt { color: #5b625e; } dd { margin: 0; font-weight: 500; }
-  .barra { margin-bottom: 14px; } .barra button { font: inherit; padding: 6px 14px; cursor: pointer; }
-  @media print { body { margin: 0; } .barra { display: none; } }
+  @media print { body { margin: 0; } }
   @page { margin: 14mm; }`;
 
-/** Abre o relatório em nova janela e chama a impressão (o usuário escolhe "Salvar como PDF"). */
+/**
+ * Imprime o relatório sem abrir outra aba: monta a página num quadro invisível e abre a janela de
+ * impressão do navegador, onde o usuário escolhe a impressora ou "Salvar como PDF".
+ */
 function abrir(titulo: string, subtitulo: string, corpo: string, paisagem = false) {
-  const w = window.open('', '_blank');
-  if (!w) { alert('Permita pop-ups para este site para gerar o relatório.'); return; }
+  document.getElementById('sisti-impressao')?.remove();
+  const quadro = document.createElement('iframe');
+  quadro.id = 'sisti-impressao';
+  quadro.setAttribute('aria-hidden', 'true');
+  quadro.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(quadro);
   const agora = new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-  w.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
+  const doc = quadro.contentDocument!;
+  doc.open();
+  doc.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(titulo)}</title>
     <style>${ESTILO}${paisagem ? '@page { size: landscape; }' : ''}</style></head><body>
-    <div class="barra"><button onclick="print()">Imprimir / salvar PDF</button> <button onclick="close()">Fechar</button></div>
     <header><div><h1>${esc(titulo)}</h1>${subtitulo ? `<div class="sub">${esc(subtitulo)}</div>` : ''}</div>
     <div class="sub">SisTI · gerado em ${esc(agora)}</div></header>${corpo}</body></html>`);
-  w.document.close();
-  setTimeout(() => { try { w.focus(); w.print(); } catch { /* janela já fechada */ } }, 300);
+  doc.close();
+  // O nome sugerido para o PDF vem do título da página principal: troca durante a impressão
+  const tituloOriginal = document.title;
+  const restaurar = () => { document.title = tituloOriginal; setTimeout(() => quadro.remove(), 1000); };
+  setTimeout(() => {
+    const w = quadro.contentWindow!;
+    w.addEventListener('afterprint', restaurar, { once: true });
+    document.title = titulo;
+    w.focus(); w.print();
+    setTimeout(() => { if (document.title === titulo) document.title = tituloOriginal; }, 60000);
+  }, 200);
 }
 
 /** Relatório em lista (tabela). */

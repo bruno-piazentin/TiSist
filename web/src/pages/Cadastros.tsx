@@ -14,7 +14,12 @@ interface Def {
   input?: 'email' | 'tel'; dica?: string; max?: number;
   rel?: boolean;                        // também entra no relatório em lista (PDF), além das colunas da tabela
   rt?: string;                          // rótulo completo para relatórios/CSV quando o nome se repete entre seções
+  json?: string;                        // campo guardado dentro de uma coluna JSON (ex.: endereço da loja)
 }
+
+/** Chave do campo no formulário e leitura do valor (direto ou dentro da coluna JSON). */
+const chave = (d: Def) => (d.json ? d.json + '.' + d.c : d.c);
+const ler = (d: Def, l: any) => (d.json ? l?.[d.json]?.[d.c] : l?.[d.c]);
 
 const ENT: Record<string, { titulo: string; perm: string; campos: Def[] }> = {
   lojas: { titulo: 'Unidades (lojas)', perm: 'cadastro.gerir', campos: [
@@ -22,6 +27,11 @@ const ENT: Record<string, { titulo: string; perm: string; campos: Def[] }> = {
     { c: 'cnpj', r: 'CNPJ', obr: true, tabela: true }, { c: 'tipo', r: 'Tipo', tipo: 'lista', opcoes: ['SUPERMERCADO', 'HIPERMERCADO', 'ATACAREJO', 'CONVENIENCIA', 'CD', 'ESCRITORIO'], obr: true, tabela: true },
     { c: 'area_m2', r: 'Área (m²)', tipo: 'numero', tabela: true }, { c: 'qtd_checkouts', r: 'Checkouts', tipo: 'numero', tabela: true },
     { c: 'situacao', r: 'Situação', tipo: 'lista', opcoes: ['ATIVA', 'EM_IMPLANTACAO', 'FECHADA'], tabela: true }, { c: 'critica', r: 'Loja crítica', tipo: 'bool', tabela: true }, { c: 'erp_id', r: 'Código no ERP' },
+    { c: 'nome_reduzido', r: 'Nome reduzido', json: 'endereco' }, { c: 'inscricao_estadual', r: 'Inscrição estadual', json: 'endereco' },
+    { c: 'cep', r: 'CEP', dica: '00000-000', max: 9, json: 'endereco', secao: 'Endereço e contato' }, { c: 'logradouro', r: 'Logradouro', json: 'endereco', rel: true },
+    { c: 'numero', r: 'Número', json: 'endereco' }, { c: 'complemento', r: 'Complemento', json: 'endereco' },
+    { c: 'bairro', r: 'Bairro', json: 'endereco', tabela: true }, { c: 'cidade', r: 'Cidade', json: 'endereco', rel: true }, { c: 'uf', r: 'UF', dica: 'PR', max: 2, json: 'endereco' },
+    { c: 'telefone', r: 'Telefone', input: 'tel', json: 'endereco', tabela: true },
   ] },
   departamentos: { titulo: 'Departamentos', perm: 'cadastro.gerir', campos: [
     { c: 'codigo', r: 'Código', obr: true, tabela: true }, { c: 'nome', r: 'Nome', obr: true, tabela: true }, { c: 'centro_custo', r: 'Centro de custo', obr: true, tabela: true }, { c: 'ativo', r: 'Ativo', tipo: 'bool', tabela: true },
@@ -69,13 +79,13 @@ const ENT: Record<string, { titulo: string; perm: string; campos: Def[] }> = {
 
 /** Valor legível de um campo (resolve vínculos, listas e sim/não). */
 function exibirValor(d: Def, l: any, ref: any) {
-  const v = l[d.c];
+  const v = ler(d, l);
   if (d.tipo === 'bool') return v ? 'Sim' : 'Não';
   if (d.tipo === 'ref') { const x = (ref[d.ref!] || []).find((i: any) => i.id === v); return x ? d.rotuloRef!(x) : '—'; }
   if (d.tipo === 'multi') return (v || []).join(', ');
   if (d.tipo === 'refmulti') return (v || []).map((id: string) => (ref[d.ref!] || []).find((i: any) => i.id === id)).filter(Boolean).map(d.rotuloRef!).join(', ') || '—';
   if (d.c.includes('valor')) return moeda(v);
-  return v ?? '—';
+  return v === '' || v == null ? '—' : v;
 }
 
 /** Registro com os vínculos que não vêm na própria linha (marcas do fabricante). */
@@ -154,11 +164,19 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
     relatorioFicha(String(nome), `Ficha de ${titulo.toLowerCase()} · ${usuario.nome}`, secoes);
   };
   const marcasDoFabricante = entidade === 'fabricantes' && registro.id ? ref.marcaFabricante.filter((m: any) => m.fabricante_id === registro.id).map((m: any) => m.marca_id) : [];
-  const [v, setV] = useState<any>(() => Object.fromEntries(def.map(d => [d.c, entidade === 'fabricantes' && d.c === 'marcas' ? marcasDoFabricante : registro[d.c] ?? (d.tipo === 'bool' ? (d.c === 'ativo' || d.c === 'ativo_catalogo') : d.tipo === 'multi' || d.tipo === 'refmulti' ? [] : '')])));
+  const [v, setV] = useState<any>(() => Object.fromEntries(def.map(d => [chave(d), entidade === 'fabricantes' && d.c === 'marcas' ? marcasDoFabricante : ler(d, registro) ?? (d.tipo === 'bool' ? (d.c === 'ativo' || d.c === 'ativo_catalogo') : d.tipo === 'multi' || d.tipo === 'refmulti' ? [] : '')])));
   const acao = useAcao();
   const set = (c: string, x: any) => setV((s: any) => ({ ...s, [c]: x }));
   const salvar = async () => {
-    const corpo = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x === '' ? null : x]));
+    const corpo: any = {};
+    for (const d of def) {
+      const x = v[chave(d)];
+      if (!d.json) { corpo[d.c] = x === '' ? null : x; continue; }
+      // campos JSON: junta com o que já existe na coluna (preserva chaves que a tela não mostra)
+      corpo[d.json] ??= { ...(registro[d.json] || {}) };
+      const t = typeof x === 'string' ? x.trim() : x;
+      if (t === '' || t == null) delete corpo[d.json][d.c]; else corpo[d.json][d.c] = t;
+    }
     const ok = await acao.executar(() => registro.id ? api('PUT', `/api/cadastros/${entidade}/${registro.id}`, corpo) : api('POST', `/api/cadastros/${entidade}`, corpo));
     if (ok) { avisar('Registro salvo'); onOk(); onFechar(); }
   };
@@ -179,23 +197,23 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
       {!somenteLeitura && <button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button>}</>}>
       {acao.erro && <div className="aviso erro">{acao.erro}</div>}
       <fieldset disabled={somenteLeitura} className="campos" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-        {def.map(d => (<Fragment key={d.c}>
+        {def.map(d => { const k = chave(d); return (<Fragment key={k}>
           {d.secao && <h3 className="secao-form">{d.secao}</h3>}
           <Campo rotulo={d.r} obrigatorio={d.obr} largo={d.tipo === 'refmulti'}>
-            {d.tipo === 'bool' ? <label className="check"><input type="checkbox" checked={!!v[d.c]} onChange={e => set(d.c, e.target.checked)} /> Sim</label>
-              : d.tipo === 'lista' ? <Opcoes itens={d.opcoes!.map(o => ({ valor: o }))} valor={v[d.c]} onChange={x => set(d.c, x)} rotulo={o => o.valor.replace(/_/g, ' ').toLowerCase()} />
-              : d.tipo === 'ref' ? <Opcoes itens={opcoesRef(d)} valor={v[d.c]} onChange={x => set(d.c, x)} rotulo={d.rotuloRef!} />
+            {d.tipo === 'bool' ? <label className="check"><input type="checkbox" checked={!!v[k]} onChange={e => set(k, e.target.checked)} /> Sim</label>
+              : d.tipo === 'lista' ? <Opcoes itens={d.opcoes!.map(o => ({ valor: o }))} valor={v[k]} onChange={x => set(k, x)} rotulo={o => o.valor.replace(/_/g, ' ').toLowerCase()} />
+              : d.tipo === 'ref' ? <Opcoes itens={opcoesRef(d)} valor={v[k]} onChange={x => set(k, x)} rotulo={d.rotuloRef!} />
               : d.tipo === 'multi' || d.tipo === 'refmulti' ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
                   {(d.tipo === 'multi' ? d.opcoes!.map(o => ({ id: o, nome: o })) : ref[d.ref!]).map((o: any) => (
-                    <label key={o.id} className="check"><input type="checkbox" checked={(v[d.c] || []).includes(o.id)}
-                      onChange={e => set(d.c, e.target.checked ? [...(v[d.c] || []), o.id] : (v[d.c] || []).filter((x: string) => x !== o.id))} /> {d.tipo === 'multi' ? o.nome.toLowerCase() : d.rotuloRef!(o)}</label>
+                    <label key={o.id} className="check"><input type="checkbox" checked={(v[k] || []).includes(o.id)}
+                      onChange={e => set(k, e.target.checked ? [...(v[k] || []), o.id] : (v[k] || []).filter((x: string) => x !== o.id))} /> {d.tipo === 'multi' ? o.nome.toLowerCase() : d.rotuloRef!(o)}</label>
                   ))}
                 </div>)
-              : <input type={d.tipo === 'numero' ? 'number' : d.input || 'text'} step="any" value={v[d.c] ?? ''} placeholder={d.dica} maxLength={d.max}
-                  onChange={e => set(d.c, d.c === 'uf' ? e.target.value.toUpperCase() : e.target.value)} />}
+              : <input type={d.tipo === 'numero' ? 'number' : d.input || 'text'} step="any" value={v[k] ?? ''} placeholder={d.dica} maxLength={d.max}
+                  onChange={e => set(k, d.c === 'uf' ? e.target.value.toUpperCase() : e.target.value)} />}
           </Campo>
-        </Fragment>))}
+        </Fragment>); })}
       </fieldset>
       {entidade === 'fabricantes' && <p className="muted small">Vínculos de marca só são adicionados (não removidos), para preservar modelos já cadastrados.</p>}
     </Modal>
