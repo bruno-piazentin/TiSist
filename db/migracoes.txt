@@ -9,3 +9,4 @@
 07_base_producao.sql
 08_agenda.sql
 09_carga_unidades.sql
+10_visoes_restricao_loja.sql

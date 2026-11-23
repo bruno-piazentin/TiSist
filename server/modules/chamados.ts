@@ -2,7 +2,7 @@
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { tx, type Db } from '../db';
-import { exigir, type Usuario } from '../auth';
+import { exigir, pode, type Usuario } from '../auth';
 import { enviarCsv, HttpError, validar, type Router } from '../http';
 import { movimentar } from './equipamentos';
 
@@ -31,6 +31,8 @@ export type AbrirChamado = z.infer<typeof abrirChamadoSchema>;
 
 /** Abre chamado (idempotente pelo id). Usado pela tela e pela sincronização offline. */
 export async function abrirChamado(db: Db, u: Usuario, d: AbrirChamado) {
+  // Conferido aqui (e não só na rota) porque a sincronização offline também chama esta função
+  if (!pode(u, 'chamado.abrir')) throw new HttpError(403, 'Seu perfil não permite abrir chamado');
   const existente = await db.one('SELECT id, numero FROM chamado WHERE id = $1', [d.id]);
   if (existente) return { ...existente, duplicado: true };
   const e = await db.one(`SELECT e.id, e.status, e.loja_id, l.critica, p.modelo, g.codigo AS grupo

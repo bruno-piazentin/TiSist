@@ -8,6 +8,14 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.1.1 (23/11/2026)
+
+**Correções de segurança**
+- Gerente de loja e técnico deixam de ver, no painel, equipamentos e custos de lojas às quais não têm acesso (quadro "Custo próximo do valor de compra").
+- Abertura de chamado pela sincronização offline passa a conferir a permissão do perfil: Auditoria, Diretoria, Compras e Administrador não abrem chamado também por esse caminho.
+
+O `sisti atualizar` aplica sozinho o ajuste de banco desta versão (`db/10_visoes_restricao_loja.sql`).
+
 ## 1.1.0 (23/11/2026)
 
 **Novo**
