@@ -1,0 +1,13 @@
+{
+  "name": "SisTI – Manutenção de TI",
+  "short_name": "SisTI",
+  "description": "Controle de manutenção de equipamentos de TI da rede",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f2",
+  "theme_color": "#0f3d3e",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

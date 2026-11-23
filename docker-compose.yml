@@ -1,0 +1,30 @@
+# SisTI com PostgreSQL em um servidor (interno ou VM).
+# 1) cp .env.example .env e ajuste senhas   2) docker compose up -d --build
+# 3) carregue o banco (ver README, seção "Banco de dados")
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sisti
+      POSTGRES_USER: sisti_owner
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:-troque-esta-senha-do-dono}
+    volumes:
+      - dados:/var/lib/postgresql/data
+      - ./db:/sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sisti_owner -d sisti"]
+      interval: 10s
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://sisti_app:${DB_APP_PASSWORD:-troque-esta-senha}@db:5432/sisti
+      PORT: "3000"            # porta dentro do container (não mude)
+    ports:
+      - "${SISTI_PORTA:-3010}:3000"   # porta no seu computador: defina SISTI_PORTA no .env
+volumes:
+  dados:

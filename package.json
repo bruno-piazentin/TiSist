@@ -1,0 +1,29 @@
+{
+  "name": "sisti",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SisTI - Controle de manutenção de equipamentos e serviços de TI para rede de supermercados",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch & node --watch dist/server.cjs",
+    "start": "node --enable-source-maps dist/server.cjs",
+    "db:init": "bash scripts/db-init.sh",
+    "db:demo": "bash scripts/db-init.sh --demo",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "pg": "^8.13.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.25.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}
