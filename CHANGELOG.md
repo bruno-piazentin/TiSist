@@ -12,6 +12,7 @@ Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](
 
 **Implantação**
 - Acesso ao banco pelo pgAdmin via túnel SSH: a porta 5432 passa a existir só dentro do servidor (127.0.0.1), sem ficar exposta na rede. Passo a passo em docs/IMPLANTACAO.md, "Acessar o banco pelo pgAdmin".
+- Usuário de banco só de leitura (`sisti_leitura`) para o pgAdmin: consulta todas as lojas, não grava nada nem vê senhas. A senha é gerada no servidor com `sisti leitura`.
 
 ## 1.1.1 (23/11/2026)
 

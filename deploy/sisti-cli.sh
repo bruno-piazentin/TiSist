@@ -44,6 +44,16 @@ case "${1:-ajuda}" in
     install -m 755 deploy/sisti-cli.sh /usr/local/bin/sisti 2>/dev/null || true
     echo "SisTI $alvo instalado. Para voltar: sisti atualizar VERSAO_ANTERIOR (e, se o banco mudou, sisti restaurar o backup acima)" ;;
   migrar) migrar ;;
+  leitura)
+    # Gera (ou troca) a senha do usuário de banco só de leitura, para o pgAdmin
+    migrar >/dev/null
+    senha="$(openssl rand -hex 16)"
+    echo "ALTER ROLE sisti_leitura PASSWORD '$senha';" | "${DC[@]}" exec -T db psql -U sisti_owner -d sisti -v ON_ERROR_STOP=1 -q
+    umask 077; sed -i "/^DB_LEITURA_PASSWORD=/d" .env.producao; echo "DB_LEITURA_PASSWORD=$senha" >> .env.producao
+    echo "Usuário de banco só de leitura (pgAdmin):"
+    echo "  Usuário: sisti_leitura"
+    echo "  Senha:   $senha"
+    echo "(guardada em $DIR/.env.producao; rodar de novo gera outra senha e invalida a anterior)" ;;
   sql)
     [[ -f "${2:-}" ]] || { echo "uso: sisti sql db/ARQUIVO.sql"; exit 1; }
     "${DC[@]}" exec -T db psql -U sisti_owner -d sisti -v ON_ERROR_STOP=1 -1 -f "/sql/$(basename "$2")" ;;
@@ -68,6 +78,7 @@ sisti iniciar | parar | reiniciar
 sisti versao              versão instalada e versões publicadas
 sisti atualizar [vX.Y.Z]  instala a última versão (ou a indicada); faz backup antes
 sisti migrar              aplica scripts de banco pendentes (o atualizar já faz)
+sisti leitura             gera a senha do usuário só de leitura (pgAdmin)
 sisti sql db/ARQ.sql      roda um script avulso no banco
 sisti backup              faz um backup agora
 sisti backups             lista os backups

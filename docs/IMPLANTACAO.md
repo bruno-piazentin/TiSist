@@ -210,14 +210,19 @@ A porta do banco (5432) só existe dentro do servidor (`127.0.0.1`), e o acesso 
 
 Pré-requisito: acesso SSH ao servidor (o mesmo usuário usado para administrá-lo). Confira com `ssh usuario@IP-DO-SERVIDOR`.
 
+Para o dia a dia, use o usuário **só de leitura** `sisti_leitura`: ele consulta todas as tabelas de todas as lojas, mas não grava nada nem vê as senhas dos usuários. Gere a senha dele no servidor (rodar de novo troca a senha):
+```bash
+sisti leitura
+```
+
 No pgAdmin: **Register → Server**
 - **General → Name:** SisTI
 - **Connection:**
   - Host name/address: `127.0.0.1`
   - Port: `5432`
   - Maintenance database: `sisti`
-  - Username: `sisti_owner`
-  - Password: valor de `DB_OWNER_PASSWORD` (veja com `sudo grep DB_OWNER_PASSWORD /opt/sisti/.env.producao`)
+  - Username: `sisti_leitura`
+  - Password: a senha mostrada pelo `sisti leitura` (também em `/opt/sisti/.env.producao`, linha `DB_LEITURA_PASSWORD`)
 - **SSH Tunnel:**
   - Use SSH tunneling: ativado
   - Tunnel host: IP do servidor
@@ -227,7 +232,7 @@ No pgAdmin: **Register → Server**
 
 As tabelas ficam no esquema **sisti** (Databases → sisti → Schemas → sisti → Tables).
 
-**Cuidado:** `sisti_owner` é o dono do banco e pode alterar qualquer dado. Use para consultas; alterações devem ser feitas pelo sistema, que registra quem fez o quê. Faça `sisti backup` antes de qualquer alteração manual.
+Para alterar dados direto no banco (excepcional), use `sisti_owner` com a senha `DB_OWNER_PASSWORD`. Ele é o dono do banco e pode alterar e apagar qualquer coisa, sem registrar quem fez. Faça `sisti backup` antes; no dia a dia, as alterações devem ser feitas pelo sistema.
 
 Se a porta 5432 do servidor já estiver em uso por outro programa, defina outra em `.env.producao` (ex.: `DB_PORTA_LOCAL=5433`), rode `sisti iniciar` e use essa porta no pgAdmin.
 
