@@ -13,3 +13,4 @@
 11_usuario_leitura.sql
 12_bloqueio_login.sql
 13_pdv.sql
+14_configuracao.sql

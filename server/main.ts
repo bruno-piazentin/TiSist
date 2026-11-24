@@ -14,7 +14,8 @@ import { rotasDashboard } from './modules/dashboard';
 import { rotasSync } from './modules/sync';
 import { rotasAgenda } from './modules/agenda';
 import { rotasPdv } from './modules/pdv';
-import { iniciarMonitorPdv } from './monitor-pdv';
+import { iniciarMonitorPdv, rotasMonitor, statusMonitor } from './monitor-pdv';
+import { importarDoAmbiente, rotasConfiguracao } from './modules/configuracao';
 
 const router = new Router();
 router.add('GET', '/api/saude', async () => {
@@ -31,6 +32,8 @@ rotasDashboard(router);
 rotasSync(router);
 rotasAgenda(router);
 rotasPdv(router);
+rotasConfiguracao(router, statusMonitor);
+rotasMonitor(router);
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost');
@@ -67,7 +70,9 @@ const server = createServer(async (req, res) => {
 
 server.listen(config.porta, () => {
   console.log(`SisTI rodando em http://localhost:${config.porta}`);
-  iniciarMonitorPdv();
+  importarDoAmbiente()
+    .catch(e => console.error('Importação das configurações do .env falhou:', e.message))
+    .finally(iniciarMonitorPdv);
 });
 
 // Encerramento limpo (systemd/Docker)

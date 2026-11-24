@@ -424,3 +424,24 @@ a, button, [role=button], input, select, textarea, label, tr.clicavel { touch-ac
   .pdv-perif { grid-template-columns: repeat(3, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { .pdv-com.c-falha .pdv-luz { animation: none; } .pdv-cartao:hover { transform: none; } }
+
+/* ---------------- Parâmetros (seções por grupo) ---------------- */
+.param-lista { display: grid; gap: 16px; }
+.param-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.param-cab h2 { font-size: 16px; margin: 0 0 2px; }
+.param-cab p { margin: 0; }
+.param-cab .pill { flex-shrink: 0; white-space: nowrap; }
+.param-grupo .campos .muted.small { display: block; margin-top: 4px; }
+.param-rodape { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--borda); }
+.param-botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+.param-servidor { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px 24px; margin: 0; }
+.param-servidor div { min-width: 0; }
+.param-servidor dt { font-size: 12px; color: var(--texto-2); margin-bottom: 2px; }
+.param-servidor dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.param-servidor dd .muted { font-weight: 400; }
+.txt-verde { color: var(--verde); font-weight: 600; }
+@media (max-width: 640px) {
+  .param-cab { flex-direction: column; }
+  .param-botoes { width: 100%; }
+  .param-botoes .btn { flex: 1; }
+}

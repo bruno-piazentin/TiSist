@@ -121,6 +121,8 @@ Melhorias de código já mapeadas e ainda não feitas: [docs/MELHORIAS-PENDENTES
 - `evento`, `movimentacao` e `custo_lancamento` são somente inclusão. Correção = estorno.
 - Toda requisição autenticada abre uma transação com `sisti.usuario_id` definido: é isso que ativa o RLS e identifica o autor nos eventos.
 - Parâmetros (janelas de reincidência, percentuais, cotações) ficam na tabela `sisti.parametro` e são editados na tela Parâmetros.
+- Configurações de integração (Zabbix, monitor de PDVs) ficam na tabela `sisti.configuracao` (segredos cifrados em `configuracao_segredo`), lidas com `lerConfiguracoes()` de `server/modules/configuracao.ts`. Endereço de API ou servidor novo: acrescente a chave nessa tabela (script em `db/`), em `VALIDAR` e, se for de um grupo novo, em `GRUPOS_PARAMETRO` (servidor e tela). Não crie variável de ambiente para isso.
+- A alteração de parâmetros é permitida por grupo (`usuario.parametro_grupos`; o administrador altera todos).
 
 ## Limitações conhecidas desta versão
 

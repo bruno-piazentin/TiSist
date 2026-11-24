@@ -1,30 +1,47 @@
 // Monitor de comunicação dos PDVs: a cada ciclo testa o IP de cada PDV ativo e, se configurado,
 // consulta o Zabbix (disponibilidade do host e alertas ativos). Grava o resultado em pdv_comunicacao.
 //
-// Variáveis de ambiente (todas opcionais):
-//   PDV_MONITOR_SEGUNDOS  intervalo entre ciclos (padrão 60; 0 desliga o monitor)
-//   PDV_PORTA_TCP         testa conexão nessa porta em vez de ping (use se os PDVs bloqueiam ping)
-//   ZABBIX_URL            ex.: http://10.10.4.20/zabbix  (a API fica em /api_jsonrpc.php)
-//   ZABBIX_TOKEN          token de API de um usuário só de leitura no Zabbix
+// Configuração na tela Parâmetros (tabela configuracao, grupos MONITOR_PDV e ZABBIX), lida a cada ciclo:
+//   pdv_monitor_segundos  intervalo entre ciclos (0 desliga o monitor)
+//   pdv_porta_tcp         testa conexão nessa porta em vez de ping (use se os PDVs bloqueiam ping)
+//   zabbix_url            ex.: http://10.10.4.20/zabbix  (a API fica em /api_jsonrpc.php)
+//   zabbix_token          token de API de um usuário só de leitura no Zabbix
 import { execFile } from 'node:child_process';
 import { connect } from 'node:net';
 import { pool } from './db';
+import { exigir } from './auth';
+import { HttpError, type Router } from './http';
+import { lerConfiguracoes, podeAlterarGrupo } from './modules/configuracao';
 
-const INTERVALO = Number(process.env.PDV_MONITOR_SEGUNDOS || 60);   // '0' desliga; vazio = 60
-const PORTA_TCP = Number(process.env.PDV_PORTA_TCP || 0);
-const ZABBIX_URL = (process.env.ZABBIX_URL || '').replace(/\/+$/, '').replace(/\/api_jsonrpc\.php$/, '');
-const ZABBIX_TOKEN = process.env.ZABBIX_TOKEN || '';
 const SIMULTANEOS = 20;   // testes em paralelo por ciclo
 
 interface Alvo { id: string; ip: string }
 interface Resultado { online: boolean; latenciaMs: number | null }
+interface Cfg { intervalo: number; portaTcp: number; zabbixUrl: string; zabbixToken: string }
 
-/** Testa um IP: ping (2 pacotes, 2 s) ou conexão TCP na porta configurada. */
-export function testarIp(ip: string): Promise<Resultado> {
-  if (PORTA_TCP) {
+async function cfg(): Promise<Cfg> {
+  const c = await lerConfiguracoes();
+  return {
+    intervalo: c.pdv_monitor_segundos == null ? 60 : Number(c.pdv_monitor_segundos),
+    portaTcp: Number(c.pdv_porta_tcp || 0),
+    zabbixUrl: c.zabbix_url || '', zabbixToken: c.zabbix_token || '',
+  };
+}
+const zabbixLigado = (c: Cfg) => !!(c.zabbixUrl && c.zabbixToken);
+
+// Situação exibida na tela Parâmetros
+const status = {
+  ultimoCiclo: null as string | null, pdvsTestados: 0, erroCiclo: null as string | null,
+  zabbixOk: null as string | null, erroZabbix: null as string | null,
+};
+export const statusMonitor = () => ({ ...status });
+
+/** Testa um IP: ping (2 pacotes, 2 s) ou conexão TCP na porta informada. */
+export function testarIp(ip: string, portaTcp = 0): Promise<Resultado> {
+  if (portaTcp) {
     return new Promise(resolve => {
       const inicio = Date.now();
-      const s = connect({ host: ip, port: PORTA_TCP, timeout: 2000 });
+      const s = connect({ host: ip, port: portaTcp, timeout: 2000 });
       const fim = (online: boolean) => { s.destroy(); resolve({ online, latenciaMs: online ? Date.now() - inicio : null }); };
       s.once('connect', () => fim(true)).once('timeout', () => fim(false)).once('error', () => fim(false));
     });
@@ -54,29 +71,33 @@ async function gravarTeste(id: string, r: Resultado) {
 
 /** Testa um PDV agora e grava o resultado (botão "Testar agora" e ciclo do monitor). */
 export async function verificarPdv(a: Alvo) {
-  const r = await testarIp(a.ip);
+  const c = await cfg();
+  const r = await testarIp(a.ip, c.portaTcp);
   await gravarTeste(a.id, r);
-  if (ZABBIX_URL && ZABBIX_TOKEN) await consultarZabbix([a]).catch(e => avisar('zabbix', e));
+  if (zabbixLigado(c)) await consultarZabbix(c, [a]).catch(e => avisar('zabbix', e));
   return r;
 }
 
 // ---------------- Zabbix ----------------
-let authNoCorpo = false;   // Zabbix anterior à 6.4 não aceita o token no cabeçalho: cai para o campo "auth"
+// Zabbix anterior à 6.4 não aceita o token no cabeçalho: cai para o campo "auth" (lembrado por endereço)
+const authNoCorpo = new Set<string>();
 
-async function zabbix(metodo: string, params: unknown): Promise<any> {
+async function zabbix(c: Cfg, metodo: string, params: unknown, semAuth = false): Promise<any> {
   const chamar = async () => {
-    const r = await fetch(ZABBIX_URL + '/api_jsonrpc.php', {
+    const noCorpo = authNoCorpo.has(c.zabbixUrl);
+    const r = await fetch(c.zabbixUrl + '/api_jsonrpc.php', {
       method: 'POST',
-      headers: { 'content-type': 'application/json-rpc', ...(authNoCorpo ? {} : { authorization: 'Bearer ' + ZABBIX_TOKEN }) },
-      body: JSON.stringify({ jsonrpc: '2.0', method: metodo, params, id: 1, ...(authNoCorpo ? { auth: ZABBIX_TOKEN } : {}) }),
+      headers: { 'content-type': 'application/json-rpc', ...(semAuth || noCorpo ? {} : { authorization: 'Bearer ' + c.zabbixToken }) },
+      body: JSON.stringify({ jsonrpc: '2.0', method: metodo, params, id: 1, ...(!semAuth && noCorpo ? { auth: c.zabbixToken } : {}) }),
       signal: AbortSignal.timeout(10_000),
+      redirect: 'error',   // não segue redirecionamento: o token não sai para outro endereço
     });
     if (!r.ok) throw new Error(`Zabbix respondeu HTTP ${r.status}`);
     return r.json() as Promise<any>;
   };
   let j = await chamar();
-  if (j.error && !authNoCorpo && /auth|login|session/i.test(`${j.error.message} ${j.error.data}`)) {
-    authNoCorpo = true;
+  if (!semAuth && j.error && !authNoCorpo.has(c.zabbixUrl) && /auth|login|session/i.test(`${j.error.message} ${j.error.data}`)) {
+    authNoCorpo.add(c.zabbixUrl);
     j = await chamar();
   }
   if (j.error) throw new Error(`Zabbix ${metodo}: ${j.error.message} ${j.error.data || ''}`.trim());
@@ -84,10 +105,10 @@ async function zabbix(metodo: string, params: unknown): Promise<any> {
 }
 
 /** Procura os hosts pelo IP da interface e grava disponibilidade e alertas ativos de cada PDV. */
-async function consultarZabbix(alvos: Alvo[]) {
+async function consultarZabbix(c: Cfg, alvos: Alvo[]) {
   if (!alvos.length) return;
   const interfaces: { hostid: string; ip: string; available: string }[] =
-    await zabbix('hostinterface.get', { output: ['hostid', 'ip', 'available'], filter: { ip: alvos.map(a => a.ip) } });
+    await zabbix(c, 'hostinterface.get', { output: ['hostid', 'ip', 'available'], filter: { ip: alvos.map(a => a.ip) } });
   const porIp = new Map<string, { hostid: string; available: string }>();
   for (const i of interfaces) {
     // um host pode ter várias interfaces no mesmo IP: fica a de pior disponibilidade (2 = indisponível)
@@ -95,7 +116,7 @@ async function consultarZabbix(alvos: Alvo[]) {
     if (!atual || i.available === '2') porIp.set(i.ip, i);
   }
   const hostids = [...new Set([...porIp.values()].map(h => h.hostid))];
-  const gatilhos: any[] = hostids.length ? await zabbix('trigger.get', {
+  const gatilhos: any[] = hostids.length ? await zabbix(c, 'trigger.get', {
     output: ['description', 'priority', 'lastchange'], hostids, selectHosts: ['hostid'],
     filter: { value: 1 }, monitored: true, skipDependent: true, expandDescription: true,
   }) : [];
@@ -117,34 +138,67 @@ async function consultarZabbix(alvos: Alvo[]) {
 
 // ---------------- ciclo ----------------
 const avisados = new Set<string>();
-function avisar(origem: string, e: unknown) {
-  const msg = `${origem}: ${(e as Error)?.message || e}`;
+function avisar(origem: 'zabbix' | 'ciclo', e: unknown) {
+  const texto = String((e as Error)?.message || e);
+  if (origem === 'zabbix') status.erroZabbix = texto; else status.erroCiclo = texto;
+  const msg = `${origem}: ${texto}`;
   if (avisados.has(msg)) return;   // não repete o mesmo erro a cada minuto
   avisados.add(msg);
   console.error('[monitor PDV]', msg);
 }
 
-let rodando = false;
-async function ciclo() {
-  if (rodando) return;
-  rodando = true;
+/** Um ciclo: devolve o intervalo (s) até o próximo; 0 = monitor desligado. */
+async function ciclo(): Promise<{ intervalo: number; c: Cfg | null }> {
+  let c: Cfg;
+  try { c = await cfg(); } catch (e) { avisar('ciclo', e); return { intervalo: 60, c: null }; }
+  if (!c.intervalo) return { intervalo: 0, c };
   try {
     const { rows } = await pool.query<Alvo>('SELECT id, ip FROM sisti.fn_pdv_para_monitorar()');
     for (let i = 0; i < rows.length; i += SIMULTANEOS) {
-      await Promise.all(rows.slice(i, i + SIMULTANEOS).map(async a => gravarTeste(a.id, await testarIp(a.ip))));
+      await Promise.all(rows.slice(i, i + SIMULTANEOS).map(async a => gravarTeste(a.id, await testarIp(a.ip, c.portaTcp))));
     }
-    if (ZABBIX_URL && ZABBIX_TOKEN) await consultarZabbix(rows).catch(e => avisar('zabbix', e));
+    status.ultimoCiclo = new Date().toISOString(); status.pdvsTestados = rows.length; status.erroCiclo = null;
+    if (zabbixLigado(c)) {
+      await consultarZabbix(c, rows)
+        .then(() => { status.zabbixOk = new Date().toISOString(); status.erroZabbix = null; })
+        .catch(e => avisar('zabbix', e));
+    }
   } catch (e) {
     avisar('ciclo', e);
-  } finally {
-    rodando = false;
   }
+  return { intervalo: c.intervalo, c };
 }
 
+let ultimaDescricao = '';
 export function iniciarMonitorPdv() {
-  if (!INTERVALO) { console.log('Monitor de PDVs desligado (PDV_MONITOR_SEGUNDOS=0)'); return; }
-  console.log(`Monitor de PDVs: a cada ${INTERVALO}s por ${PORTA_TCP ? 'TCP ' + PORTA_TCP : 'ping'}` +
-              (ZABBIX_URL && ZABBIX_TOKEN ? ` + Zabbix (${ZABBIX_URL})` : ''));
-  setTimeout(ciclo, 5_000);
-  setInterval(ciclo, INTERVALO * 1000).unref();
+  // Reagenda a cada ciclo com o intervalo atual: mudanças na tela valem sem reiniciar o servidor.
+  // Desligado (0), confere de novo a cada minuto se foi religado.
+  const proximo = async () => {
+    const { intervalo, c } = await ciclo();
+    const descricao = !intervalo ? 'desligado (intervalo 0 em Parâmetros)'
+      : `a cada ${intervalo}s por ${c?.portaTcp ? 'TCP ' + c.portaTcp : 'ping'}${c && zabbixLigado(c) ? ` + Zabbix (${c.zabbixUrl})` : ''}`;
+    if (descricao !== ultimaDescricao) { console.log('Monitor de PDVs:', descricao); ultimaDescricao = descricao; }
+    setTimeout(proximo, (intervalo || 60) * 1000).unref();
+  };
+  setTimeout(proximo, 5_000).unref();
+}
+
+/** Botão "Testar conexão" do Zabbix na tela Parâmetros (usa o endereço e o token salvos). */
+export function rotasMonitor(r: Router) {
+  r.post('/api/configuracoes/ZABBIX/testar', async ({ usuario }) => {
+    const u = exigir(usuario);
+    if (!podeAlterarGrupo(u, 'ZABBIX')) throw new HttpError(403, 'Seu usuário não pode alterar as configurações do Zabbix');
+    const c = await cfg();
+    if (!c.zabbixUrl) throw new HttpError(422, 'Informe e salve o endereço do Zabbix');
+    try {
+      const versao = await zabbix(c, 'apiinfo.version', {}, true);
+      if (!c.zabbixToken) return { ok: false, versao, mensagem: `Zabbix ${versao} respondeu, mas falta o token de API` };
+      const hosts = await zabbix(c, 'host.get', { countOutput: true });
+      status.zabbixOk = new Date().toISOString(); status.erroZabbix = null;
+      return { ok: true, versao, mensagem: `Conectado ao Zabbix ${versao}: ${hosts} hosts visíveis para o token` };
+    } catch (e) {
+      const m = String((e as Error).message);
+      return { ok: false, mensagem: /fetch failed|timeout|abort/i.test(m) ? `Sem resposta de ${c.zabbixUrl} (${m})` : m };
+    }
+  });
 }

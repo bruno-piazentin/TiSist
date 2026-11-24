@@ -4,6 +4,7 @@ import { tx } from '../db';
 import { exigir, type Permissao } from '../auth';
 import { HttpError, validar, type Router } from '../http';
 import { registrarEvento } from '../evento';
+import { podeAlterarGrupo } from './configuracao';
 import { opcional, uuid } from '../validacao';
 
 // Número com valor padrão: campo vazio/nulo usa o padrão (z.coerce transformaria null em 0)
@@ -146,14 +147,15 @@ export function rotasCadastros(r: Router) {
 
   // Parâmetros configuráveis (janelas, percentuais, prazos)
   r.put('/api/parametros/:chave', async ({ usuario, params, body }) => {
-    const u = exigir(usuario, 'parametro.gerir');
-    const { valor } = validar(z.object({ valor: z.coerce.number() }), body);
+    const u = exigir(usuario);
+    const { valor } = validar(z.object({ valor: z.coerce.number().min(0, 'O valor não pode ser negativo') }), body);
     return tx(u.id, async db => {
-      const antes = await db.one('SELECT valor FROM parametro WHERE chave = $1', [params.chave]);
+      const antes = await db.one('SELECT valor, grupo FROM parametro WHERE chave = $1 FOR UPDATE', [params.chave]);
       if (!antes) throw new HttpError(404, 'Parâmetro inexistente');
+      if (!podeAlterarGrupo(u, antes.grupo)) throw new HttpError(403, 'Seu usuário não pode alterar este grupo de parâmetros');
       await db.query('UPDATE parametro SET valor = $2 WHERE chave = $1', [params.chave, valor]);
       await registrarEvento(db, { tipo: 'PARAMETRO_ALTERADO', entidade: 'parametro',
-                                  payload: { chave: params.chave, anterior: antes.valor, novo: valor }, usuarioId: u.id });
+                                  payload: { chave: params.chave, grupo: antes.grupo, anterior: antes.valor, novo: valor }, usuarioId: u.id });
       return { ok: true };
     });
   });

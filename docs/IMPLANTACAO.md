@@ -242,24 +242,39 @@ A tela **PDVs** mostra quando um PDV está **sem comunicação**. O próprio ser
 a cada minuto (ping). Para isso, o servidor (10.10.4.14) precisa alcançar a rede das lojas: confira com
 `ping IP-DE-UM-PDV` no servidor.
 
-Ajustes em `/opt/sisti/.env.producao` (depois de alterar, rode `sisti iniciar`):
+Desde a versão 1.4.0 esses ajustes ficam na tela **Parâmetros** (seções *Monitor de PDVs* e *Zabbix*) e valem na hora,
+sem reiniciar. Altera quem é administrador ou quem recebeu o grupo no cadastro do usuário (Usuários → "Pode alterar
+parâmetros").
 
-| Variável | Para quê |
+| Ajuste na tela | Para quê |
 | --- | --- |
-| `PDV_MONITOR_SEGUNDOS` | Intervalo do teste (padrão 60). `0` desliga o monitor |
-| `PDV_PORTA_TCP` | Se os PDVs bloqueiam ping (firewall do Windows), informe uma porta que eles sempre atendem, ex.: `3389` ou `10050` (agente Zabbix). O teste passa a ser por conexão TCP |
-| `ZABBIX_URL` | Endereço do Zabbix, ex.: `http://10.10.4.20/zabbix` |
-| `ZABBIX_TOKEN` | Token de API (Zabbix 5.4 ou mais novo) |
+| Intervalo do teste | Padrão 60 segundos. `0` desliga o monitor |
+| Porta TCP do teste | Se os PDVs bloqueiam ping (firewall do Windows), informe uma porta que eles sempre atendem, ex.: `3389` ou `10050` (agente Zabbix). O teste passa a ser por conexão TCP |
+| Endereço do Zabbix | Ex.: `http://10.10.4.20/zabbix`. O botão **Testar conexão** confere endereço e token |
+| Token de API | Zabbix 5.4 ou mais novo. Fica cifrado no banco e nunca volta para a tela. Trocar o endereço apaga o token salvo |
 
-**Zabbix (opcional):** com `ZABBIX_URL` e `ZABBIX_TOKEN`, o SisTI procura cada PDV no Zabbix **pelo IP** da interface
+As variáveis `PDV_MONITOR_SEGUNDOS`, `PDV_PORTA_TCP`, `ZABBIX_URL` e `ZABBIX_TOKEN` do `.env.producao` (versão 1.3.0)
+são importadas **uma vez**, na primeira inicialização da 1.4.0; depois disso vale o que está na tela, e elas podem ser
+apagadas do arquivo.
+
+**Zabbix (opcional):** com endereço e token, o SisTI procura cada PDV no Zabbix **pelo IP** da interface
 do host e mostra, no PDV, se o host está indisponível e quais alertas estão ativos. Para criar o token:
 
 1. No Zabbix, crie um grupo de usuários com permissão **somente leitura** nos grupos de hosts das lojas.
 2. Crie o usuário `sisti` nesse grupo (perfil *User*).
-3. Em *Usuários → Tokens de API*, crie um token para o usuário `sisti` e copie o valor para `ZABBIX_TOKEN`.
+3. Em *Usuários → Tokens de API*, crie um token para o usuário `sisti` e cole o valor em **Parâmetros → Zabbix**.
 
-O token fica só no `.env.producao` do servidor (não vai para o Git). Se o Zabbix não responder ou o token estiver
-errado, o motivo aparece em `sisti logs app` (linha "[monitor PDV]"); o teste por ping continua funcionando.
+Se o Zabbix não responder ou o token estiver errado, o motivo aparece na própria seção Zabbix da tela Parâmetros e em
+`sisti logs app` (linha "[monitor PDV]"); o teste por ping continua funcionando.
+
+O token é cifrado com uma chave derivada do `JWT_SECRET`: se o `JWT_SECRET` for trocado, informe o token de novo.
+
+### Dados do servidor na tela Parâmetros
+
+A seção **Servidor** mostra, só para leitura, a versão, o endereço de acesso, o certificado, o banco (sem senha), a
+duração da sessão, o backup e o fuso. Eles continuam no `.env.producao` (`SISTI_DOMINIO`, `SISTI_IP`, `SISTI_TLS`,
+`JWT_HORAS`, `BACKUP_HORA`, `BACKUP_DIAS`, `TZ`) e, por segurança, não são alterados pela tela: edite o arquivo no
+servidor e rode `sisti iniciar`.
 
 ## 9. Problemas comuns
 

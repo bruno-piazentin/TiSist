@@ -43,8 +43,14 @@ services:
       LOG_REQUISICOES: ${LOG_REQUISICOES:-1}
       PORT: "3000"
       TZ: ${TZ:-America/Sao_Paulo}
-      # Monitor de comunicação dos PDVs (ver deploy/producao.env.exemplo)
-      PDV_MONITOR_SEGUNDOS: ${PDV_MONITOR_SEGUNDOS:-60}
+      # Exibidos (somente leitura) na tela Parâmetros, seção Servidor
+      SISTI_DOMINIO: ${SISTI_DOMINIO:-}
+      SISTI_IP: ${SISTI_IP:-}
+      SISTI_TLS: ${SISTI_TLS:-internal}
+      BACKUP_HORA: ${BACKUP_HORA:-02:00}
+      BACKUP_DIAS: ${BACKUP_DIAS:-30}
+      # Monitor de PDVs e Zabbix: importados uma vez para a tela Parâmetros (onde passam a ser alterados)
+      PDV_MONITOR_SEGUNDOS: ${PDV_MONITOR_SEGUNDOS:-}
       PDV_PORTA_TCP: ${PDV_PORTA_TCP:-}
       ZABBIX_URL: ${ZABBIX_URL:-}
       ZABBIX_TOKEN: ${ZABBIX_TOKEN:-}

@@ -4,6 +4,7 @@
 # Desenvolvimento: scripts/db-init.sh chama com DATABASE_ADMIN_URL definida.
 set -eu
 DIR="$(dirname "$0")"
+export PGCLIENTENCODING=UTF8   # scripts em UTF-8, qualquer que seja o idioma do sistema
 export PGOPTIONS="${PGOPTIONS:-} -c client_min_messages=warning"   # sem avisos informativos (ex.: "política não existe")
 # Conexão: DATABASE_ADMIN_URL (desenvolvimento) ou as variáveis do contêiner (produção)
 PSQL() {

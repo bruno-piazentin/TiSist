@@ -4,11 +4,12 @@ import { pool, tx } from '../db';
 import { assinarToken, exigir, permissoesDo, PERFIS_REDE, type Usuario } from '../auth';
 import { HttpError, validar, type Router } from '../http';
 import { registrarEvento } from '../evento';
+import { LISTA_GRUPOS } from './configuracao';
 
 /** Carrega o usuário ativo com perfil e lojas permitidas. */
 export async function carregarUsuario(id: string): Promise<Usuario | null> {
   const { rows } = await pool.query(
-    `SELECT u.id, u.nome, u.login, pf.codigo AS perfil, u.alcada_max,
+    `SELECT u.id, u.nome, u.login, pf.codigo AS perfil, u.alcada_max, u.parametro_grupos,
             coalesce(array_agg(ul.loja_id::text) FILTER (WHERE ul.loja_id IS NOT NULL), '{}') AS lojas
        FROM sisti.usuario u JOIN sisti.perfil pf ON pf.id = u.perfil_id
        LEFT JOIN sisti.usuario_loja ul ON ul.usuario_id = u.id
@@ -16,7 +17,8 @@ export async function carregarUsuario(id: string): Promise<Usuario | null> {
       GROUP BY u.id, pf.codigo`, [id]);
   const u = rows[0];
   if (!u) return null;
-  return { ...u, rede_toda: PERFIS_REDE.includes(u.perfil) };
+  return { ...u, rede_toda: PERFIS_REDE.includes(u.perfil),
+           parametro_grupos: u.perfil === 'ADMIN' ? [...LISTA_GRUPOS] : u.parametro_grupos.filter((g: string) => (LISTA_GRUPOS as string[]).includes(g)) };
 }
 
 /**
@@ -109,7 +111,7 @@ export function rotasSessao(r: Router) {
         db.query('SELECT id, codigo, nome, grupo_id FROM categoria_falha ORDER BY nome'),
         db.query('SELECT id, codigo, nome FROM perfil ORDER BY nome'),
         db.query('SELECT * FROM transicao_status'),
-        db.query('SELECT chave, valor, descricao FROM parametro ORDER BY chave'),
+        db.query('SELECT chave, valor, descricao, grupo FROM parametro ORDER BY grupo, chave'),
       ]);
       return { lojas, departamentos, grupos, marcas, fabricantes, marcaFabricante, produtos, fornecedores, servicos,
                categorias, perfis, transicoes, parametros, geradoEm: new Date().toISOString() };
@@ -123,13 +125,14 @@ export function rotasSessao(r: Router) {
     alcada_max: z.coerce.number().min(0).default(0), ativo: z.boolean().default(true),
     telefone: z.string().nullish(), lojas: z.array(z.string().uuid()).default([]),
     senha: z.string().min(8).optional(),
+    parametro_grupos: z.array(z.enum(LISTA_GRUPOS as [string, ...string[]])).default([]),
   });
 
   r.get('/api/usuarios', async ({ usuario }) => {
     const u = exigir(usuario, 'usuario.gerir');
     return tx(u.id, db => db.query(
       `SELECT u.id, u.nome, u.email, u.login, u.perfil_id, pf.codigo AS perfil, u.departamento_id, u.alcada_max, u.ativo,
-              u.telefone, u.ultimo_acesso, CASE WHEN u.bloqueado_ate > now() THEN u.bloqueado_ate END AS bloqueado_ate,
+              u.telefone, u.ultimo_acesso, u.parametro_grupos, CASE WHEN u.bloqueado_ate > now() THEN u.bloqueado_ate END AS bloqueado_ate,
               coalesce(array_agg(ul.loja_id::text) FILTER (WHERE ul.loja_id IS NOT NULL), '{}') AS lojas
          FROM usuario u JOIN perfil pf ON pf.id = u.perfil_id LEFT JOIN usuario_loja ul ON ul.usuario_id = u.id
         GROUP BY u.id, pf.codigo ORDER BY u.nome`));
@@ -140,15 +143,15 @@ export function rotasSessao(r: Router) {
     return tx(atual.id, async db => {
       const row = id
         ? await db.one(`UPDATE usuario SET nome=$2, email=$3, login=$4, perfil_id=$5, departamento_id=$6, alcada_max=$7,
-                          ativo=$8, telefone=$9, senha_hash = CASE WHEN $10::text IS NULL THEN senha_hash ELSE crypt($10, gen_salt('bf', 10)) END,
+                          ativo=$8, telefone=$9, parametro_grupos=$11, senha_hash = CASE WHEN $10::text IS NULL THEN senha_hash ELSE crypt($10, gen_salt('bf', 10)) END,
                           -- senha nova definida pelo administrador também libera um login bloqueado
                           tentativas_falhas = CASE WHEN $10::text IS NULL THEN tentativas_falhas ELSE 0 END,
                           bloqueado_ate = CASE WHEN $10::text IS NULL THEN bloqueado_ate END
                         WHERE id=$1 RETURNING id`,
-                       [id, d.nome, d.email, d.login, d.perfil_id, d.departamento_id ?? null, d.alcada_max, d.ativo, d.telefone ?? null, d.senha ?? null])
-        : await db.one(`INSERT INTO usuario (nome, email, login, perfil_id, departamento_id, alcada_max, ativo, telefone, senha_hash)
-                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, crypt($9, gen_salt('bf', 10))) RETURNING id`,
-                       [d.nome, d.email, d.login, d.perfil_id, d.departamento_id ?? null, d.alcada_max, d.ativo, d.telefone ?? null, d.senha]);
+                       [id, d.nome, d.email, d.login, d.perfil_id, d.departamento_id ?? null, d.alcada_max, d.ativo, d.telefone ?? null, d.senha ?? null, d.parametro_grupos])
+        : await db.one(`INSERT INTO usuario (nome, email, login, perfil_id, departamento_id, alcada_max, ativo, telefone, senha_hash, parametro_grupos)
+                        VALUES ($1,$2,$3,$4,$5,$6,$7,$8, crypt($9, gen_salt('bf', 10)), $10) RETURNING id`,
+                       [d.nome, d.email, d.login, d.perfil_id, d.departamento_id ?? null, d.alcada_max, d.ativo, d.telefone ?? null, d.senha, d.parametro_grupos]);
       if (!row) throw new HttpError(404, 'Usuário não encontrado');
       // usuario_loja: substitui o conjunto (tabela de vínculo; histórico fica no evento)
       const antes = await db.query('SELECT loja_id::text FROM usuario_loja WHERE usuario_id = $1', [row.id]);
@@ -159,7 +162,7 @@ export function rotasSessao(r: Router) {
         await db.query('SELECT fn_desvincular_lojas($1, $2::uuid[])', [row.id, remover]);
       }
       await registrarEvento(db, { tipo: 'USUARIO_SALVO', entidade: 'usuario', entidadeId: row.id,
-                                  payload: { perfil_id: d.perfil_id, alcada_max: d.alcada_max, ativo: d.ativo, lojas: d.lojas }, usuarioId: atual.id });
+                                  payload: { perfil_id: d.perfil_id, alcada_max: d.alcada_max, ativo: d.ativo, lojas: d.lojas, parametro_grupos: d.parametro_grupos }, usuarioId: atual.id });
       return { id: row.id };
     });
   };

@@ -13,6 +13,7 @@ export interface Usuario {
   alcada_max: number;
   lojas: string[];        // lojas permitidas (vazio = rede toda para perfis de rede)
   rede_toda: boolean;
+  parametro_grupos: string[];   // grupos de parâmetros que pode alterar (ADMIN: todos)
 }
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url');
@@ -41,7 +42,6 @@ export const PERFIS_REDE: Perfil[] = ['ADMIN', 'GESTOR_TI', 'COORDENADOR', 'COMP
 
 // Matriz de permissões (seção 10 da especificação)
 const PERMISSOES = {
-  'parametro.gerir':     ['ADMIN'],
   'usuario.gerir':       ['ADMIN'],
   'cadastro.gerir':      ['ADMIN', 'GESTOR_TI', 'COORDENADOR'],
   'fornecedor.gerir':    ['ADMIN', 'GESTOR_TI', 'COORDENADOR', 'COMPRAS'],

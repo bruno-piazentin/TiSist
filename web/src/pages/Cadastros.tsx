@@ -1,5 +1,5 @@
 // Cadastros base (genérico), usuários e parâmetros.
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { api } from '../api';
 import { Campo, Carregando, Link, Modal, Opcoes, PERFIL, Tabela, cnpjFmt, dataHora, irPara, moeda, num, useAcao, useApp, useCarregar } from '../ui';
 import { csvLocal, relatorioFicha, relatorioLista, type SecaoRel } from '../relatorio';
@@ -246,7 +246,8 @@ export function Usuarios() {
 
 function FormUsuario({ u, onFechar, onOk }: any) {
   const { ref, avisar } = useApp();
-  const [v, setV] = useState<any>({ nome: u.nome || '', email: u.email || '', login: u.login || '', perfil_id: u.perfil_id || '', departamento_id: u.departamento_id || '', alcada_max: u.alcada_max ?? 0, ativo: u.ativo ?? true, telefone: u.telefone || '', lojas: u.lojas || [], senha: '' });
+  const [v, setV] = useState<any>({ nome: u.nome || '', email: u.email || '', login: u.login || '', perfil_id: u.perfil_id || '', departamento_id: u.departamento_id || '', alcada_max: u.alcada_max ?? 0, ativo: u.ativo ?? true, telefone: u.telefone || '', lojas: u.lojas || [], parametro_grupos: u.parametro_grupos || [], senha: '' });
+  const ehAdmin = ref.perfis.find((p: any) => p.id === v.perfil_id)?.codigo === 'ADMIN';
   const acao = useAcao();
   const set = (c: string) => (e: any) => setV((s: any) => ({ ...s, [c]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
   const salvar = async () => {
@@ -280,30 +281,170 @@ function FormUsuario({ u, onFechar, onOk }: any) {
             <label key={l.id} className="check"><input type="checkbox" checked={v.lojas.includes(l.id)} onChange={e => setV({ ...v, lojas: e.target.checked ? [...v.lojas, l.id] : v.lojas.filter((x: string) => x !== l.id) })} /> {l.codigo}</label>
           ))}</div>
         </Campo>
+        <Campo rotulo="Pode alterar parâmetros (tela Parâmetros)" largo>
+          {ehAdmin ? <span className="muted small">O administrador altera todos os grupos.</span> : <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>{Object.entries(GRUPOS_PARAMETRO).map(([g, def]) => (
+              <label key={g} className="check"><input type="checkbox" checked={v.parametro_grupos.includes(g)} onChange={e => setV({ ...v, parametro_grupos: e.target.checked ? [...v.parametro_grupos, g] : v.parametro_grupos.filter((x: string) => x !== g) })} /> {def.titulo}</label>
+            ))}</div>
+            <span className="muted small">Quem tem algum grupo marcado também vê os endereços das integrações e os dados do servidor.</span>
+          </>}
+        </Campo>
       </div>
     </Modal>
   );
 }
 
 // ---------------- Parâmetros ----------------
-export function Parametros() {
-  const { ref, pode, recarregarRef, avisar } = useApp();
-  const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(ref.parametros.map((p: any) => [p.chave, String(p.valor)])));
+/** Grupos de parâmetros (a permissão de alteração é dada por grupo, no cadastro do usuário). */
+export const GRUPOS_PARAMETRO: Record<string, { titulo: string; texto: string }> = {
+  REGRAS: { titulo: 'Regras de manutenção', texto: 'Janelas de reincidência, percentuais de alerta e regras de cotação.' },
+  SEGURANCA: { titulo: 'Login e segurança', texto: 'Bloqueio do login depois de senhas erradas seguidas.' },
+  MONITOR_PDV: { titulo: 'Monitor de PDVs', texto: 'Teste de comunicação que o servidor faz em cada PDV ativo (tela PDVs).' },
+  ZABBIX: { titulo: 'Zabbix', texto: 'Disponibilidade e alertas ativos de cada PDV, procurado no Zabbix pelo IP.' },
+};
+
+function CabecalhoGrupo({ grupo, editavel }: { grupo: string; editavel: boolean }) {
+  const g = GRUPOS_PARAMETRO[grupo];
+  return (
+    <div className="param-cab">
+      <div><h2>{g.titulo}</h2><p className="muted small">{g.texto}</p></div>
+      <span className={'pill ' + (editavel ? 'p-verde' : 'p-cinza')}>{editavel ? 'você pode alterar' : 'somente leitura'}</span>
+    </div>
+  );
+}
+
+function GrupoNumerico({ grupo, editavel }: { grupo: string; editavel: boolean }) {
+  const { ref, recarregarRef, avisar } = useApp();
+  const itens = ref.parametros.filter((p: any) => (p.grupo || 'REGRAS') === grupo);
+  const [valores, setValores] = useState<Record<string, string>>(() => Object.fromEntries(itens.map((p: any) => [p.chave, String(p.valor)])));
   const acao = useAcao();
   const salvar = async (chave: string) => {
     if (await acao.executar(() => api('PUT', '/api/parametros/' + chave, { valor: valores[chave] }))) { avisar('Parâmetro atualizado'); recarregarRef(); }
   };
+  if (!itens.length) return null;
+  return (
+    <section className="card param-grupo">
+      <CabecalhoGrupo grupo={grupo} editavel={editavel} />
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
+      <Tabela linhas={itens} chave="chave" colunas={[
+        { t: 'Parâmetro', c: p => <><strong>{p.descricao}</strong><div className="muted small mono">{p.chave}</div></> },
+        { t: 'Valor', c: p => editavel ? <input type="number" step="any" min="0" aria-label={p.descricao} style={{ width: 120 }} value={valores[p.chave]} onChange={e => setValores({ ...valores, [p.chave]: e.target.value })} /> : num(p.valor, Number(p.valor) % 1 ? 2 : 0) },
+        { t: '', c: p => editavel && String(p.valor) !== valores[p.chave] ? <button className="btn pequeno primario" disabled={acao.enviando} onClick={() => salvar(p.chave)}>Salvar</button> : null },
+      ]} />
+    </section>
+  );
+}
+
+/** Grupo de configurações de texto (endereços, portas, token), gravado de uma vez. */
+function GrupoConfiguracao({ grupo, itens, editavel, extra, onSalvo }: { grupo: string; itens: any[]; editavel: boolean; extra?: ReactNode; onSalvo: () => void }) {
+  const { avisar } = useApp();
+  const inicial = () => Object.fromEntries(itens.map(i => [i.chave, i.tipo === 'SEGREDO' ? '' : (i.valor ?? '')]));
+  const [v, setV] = useState<Record<string, string>>(inicial);
+  const acao = useAcao();
+  const alterados = itens.filter(i => i.tipo === 'SEGREDO' ? v[i.chave] !== '' : v[i.chave] !== (i.valor ?? ''));
+  const salvar = async (valores: Record<string, string | null>) => {
+    const r = await acao.executar(() => api('PUT', '/api/configuracoes/' + grupo, { valores }));
+    if (!r) return;
+    avisar(r.token_apagado ? 'Endereço alterado. O token anterior foi apagado: informe o token deste Zabbix.' : 'Configuração salva', r.token_apagado ? 'info' : 'ok');
+    onSalvo();
+  };
+  const ultima = itens.filter(i => i.atualizado_em).sort((a, b) => String(b.atualizado_em).localeCompare(String(a.atualizado_em)))[0];
+  return (
+    <section className="card param-grupo">
+      <CabecalhoGrupo grupo={grupo} editavel={editavel} />
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
+      {extra}
+      <fieldset disabled={!editavel || acao.enviando} className="campos" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+        {itens.map(i => (
+          <Campo key={i.chave} rotulo={i.rotulo} largo={i.tipo === 'URL'}>
+            {i.tipo === 'SEGREDO' ? <>
+              <input type="password" autoComplete="new-password" value={v[i.chave]} onChange={e => setV({ ...v, [i.chave]: e.target.value })}
+                     placeholder={i.configurado ? '•••••••• configurado (deixe vazio para manter)' : 'não configurado'} />
+              <span className="muted small">{i.descricao}</span>
+            </> : <>
+              <input type={i.tipo === 'NUMERO' ? 'number' : i.tipo === 'URL' ? 'url' : 'text'} min={i.tipo === 'NUMERO' ? 0 : undefined}
+                     inputMode={i.tipo === 'NUMERO' ? 'numeric' : undefined} value={v[i.chave]} onChange={e => setV({ ...v, [i.chave]: e.target.value })}
+                     placeholder={i.tipo === 'URL' ? 'http://' : ''} />
+              <span className="muted small">{i.descricao}</span>
+            </>}
+          </Campo>
+        ))}
+      </fieldset>
+      <div className="param-rodape">
+        <span className="muted small">{ultima ? <>Alterado {ultima.atualizado_por ? <>por <strong>{ultima.atualizado_por}</strong> </> : 'pela importação do .env '}em {dataHora(ultima.atualizado_em)}</> : 'Valores padrão (nunca alterados)'}</span>
+        {editavel && <div className="param-botoes">
+          {itens.some(i => i.tipo === 'SEGREDO' && i.configurado) && (
+            <button className="btn" disabled={acao.enviando} onClick={() => { if (confirm('Remover o token salvo? A integração para até um novo token ser informado.')) salvar(Object.fromEntries(itens.filter(i => i.tipo === 'SEGREDO').map(i => [i.chave, null]))); }}>Remover token</button>)}
+          {alterados.length > 0 && <button className="btn" disabled={acao.enviando} onClick={() => setV(inicial())}>Desfazer</button>}
+          <button className="btn primario" disabled={!alterados.length || acao.enviando} onClick={() => salvar(Object.fromEntries(alterados.map(i => [i.chave, v[i.chave]])))}>Salvar</button>
+        </div>}
+      </div>
+    </section>
+  );
+}
+
+function StatusMonitor({ m, intervalo }: { m: any; intervalo: string | null }) {
+  if (intervalo === '0') return <div className="aviso atencao">Monitor desligado: os PDVs não são testados. Informe um intervalo para religar.</div>;
+  if (m.erroCiclo) return <div className="aviso erro" role="alert">Último ciclo com erro: {m.erroCiclo}</div>;
+  if (!m.ultimoCiclo) return <div className="aviso info">Aguardando o primeiro ciclo do monitor.</div>;
+  return <div className="aviso ok">Último ciclo em {dataHora(m.ultimoCiclo)}: {m.pdvsTestados} PDV(s) com IP testado(s).</div>;
+}
+
+function StatusZabbix({ m, itens, editavel }: { m: any; itens: any[]; editavel: boolean }) {
+  const acao = useAcao();
+  const [teste, setTeste] = useState<any>(null);
+  const url = itens.find(i => i.chave === 'zabbix_url')?.valor, token = itens.find(i => i.chave === 'zabbix_token')?.configurado;
+  const testar = async () => { setTeste(null); const r = await acao.executar(() => api('POST', '/api/configuracoes/ZABBIX/testar')); if (r) setTeste(r); };
+  return <>
+    {!url ? <div className="aviso info">Integração desligada (sem endereço).</div>
+      : !token ? <div className="aviso atencao">Falta o token de API: sem ele o SisTI não consulta o Zabbix.</div>
+      : m.erroZabbix ? <div className="aviso erro" role="alert">Última consulta com erro: {m.erroZabbix}</div>
+      : m.zabbixOk ? <div className="aviso ok">Última consulta ao Zabbix em {dataHora(m.zabbixOk)}.</div>
+      : <div className="aviso info">Aguardando a primeira consulta ao Zabbix.</div>}
+    {editavel && url && <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+      <button className="btn pequeno" disabled={acao.enviando} onClick={testar}>{acao.enviando ? 'Testando…' : 'Testar conexão'}</button>
+      {acao.erro && <span className="txt-vermelho small">{acao.erro}</span>}
+      {teste && <span className={'small ' + (teste.ok ? 'txt-verde' : 'txt-vermelho')} role="status">{teste.mensagem}</span>}
+    </div>}
+  </>;
+}
+
+export function Parametros() {
+  const { usuario } = useApp();
+  const grupos: string[] = usuario.parametro_grupos ?? [];
+  const pode = (g: string) => grupos.includes(g);
+  const veConfig = grupos.length > 0;
+  const cfg = useCarregar(() => veConfig ? api('GET', '/api/configuracoes') : Promise.resolve(null), [veConfig]);
+  const itensDe = (g: string) => (cfg.dados?.itens ?? []).filter((i: any) => i.grupo === g);
   return (
     <>
       <div className="topo"><div><div className="migalha">Cadastros</div><h1>Parâmetros</h1></div></div>
-      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
-      <div className="card">
-        <p className="muted small">Janelas de reincidência, percentuais de alerta e regras de cotação. Alterações ficam registradas no histórico de auditoria.{!pode('parametro.gerir') && ' Somente o administrador altera.'}</p>
-        <Tabela linhas={ref.parametros} chave="chave" colunas={[
-          { t: 'Parâmetro', c: p => <><strong>{p.descricao}</strong><div className="muted small mono">{p.chave}</div></> },
-          { t: 'Valor', c: p => pode('parametro.gerir') ? <input type="number" step="any" style={{ width: 120 }} value={valores[p.chave]} onChange={e => setValores({ ...valores, [p.chave]: e.target.value })} /> : num(p.valor, Number(p.valor) % 1 ? 2 : 0) },
-          { t: '', c: p => pode('parametro.gerir') && String(p.valor) !== valores[p.chave] ? <button className="btn pequeno primario" onClick={() => salvar(p.chave)}>Salvar</button> : null },
-        ]} />
+      <p className="muted small" style={{ marginTop: -6, marginBottom: 14 }}>
+        Toda alteração fica registrada no histórico de auditoria. {usuario.perfil === 'ADMIN'
+          ? 'Para que outro usuário altere um grupo, marque o grupo no cadastro dele (Usuários).'
+          : grupos.length ? '' : 'Seu usuário não altera parâmetros; peça ao administrador se precisar.'}
+      </p>
+      <div className="param-lista">
+        <GrupoNumerico grupo="REGRAS" editavel={pode('REGRAS')} />
+        <GrupoNumerico grupo="SEGURANCA" editavel={pode('SEGURANCA')} />
+        {veConfig && <Carregando {...cfg}>{() => <>
+          <GrupoConfiguracao key={'m' + cfg.dados.itens.map((i: any) => i.atualizado_em).join()} grupo="MONITOR_PDV" itens={itensDe('MONITOR_PDV')} editavel={pode('MONITOR_PDV')} onSalvo={cfg.recarregar}
+            extra={<StatusMonitor m={cfg.dados.monitor} intervalo={itensDe('MONITOR_PDV').find((i: any) => i.chave === 'pdv_monitor_segundos')?.valor ?? null} />} />
+          <GrupoConfiguracao key={'z' + cfg.dados.itens.map((i: any) => i.atualizado_em).join()} grupo="ZABBIX" itens={itensDe('ZABBIX')} editavel={pode('ZABBIX')} onSalvo={cfg.recarregar}
+            extra={<StatusZabbix m={cfg.dados.monitor} itens={itensDe('ZABBIX')} editavel={pode('ZABBIX')} />} />
+          <section className="card param-grupo">
+            <div className="param-cab">
+              <div><h2>Servidor</h2><p className="muted small">Definidos na instalação, no arquivo <span className="mono">/opt/sisti/.env.producao</span>. Por segurança não são alterados pela tela: edite o arquivo no servidor e rode <span className="mono">sisti iniciar</span>.</p></div>
+              <span className="pill p-cinza">somente leitura</span>
+            </div>
+            <dl className="param-servidor">
+              {cfg.dados.servidor.map((s: any) => (
+                <div key={s.rotulo}><dt>{s.rotulo}</dt><dd>{s.valor ? (s.tipo === 'DATA' ? dataHora(s.valor) : s.valor) : <span className="muted">não informado</span>}
+                  {s.origem && <div className="muted small mono">{s.origem}</div>}</dd></div>
+              ))}
+            </dl>
+          </section>
+        </>}</Carregando>}
       </div>
     </>
   );

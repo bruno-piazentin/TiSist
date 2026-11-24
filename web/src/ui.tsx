@@ -48,7 +48,7 @@ export function Pill({ mapa, valor }: { mapa: Record<string, { rotulo: string; c
 }
 
 // ---------------- estado global ----------------
-export interface Usuario { id: string; nome: string; login: string; perfil: string; alcada_max: number; lojas: string[]; rede_toda: boolean; permissoes: string[] }
+export interface Usuario { id: string; nome: string; login: string; perfil: string; alcada_max: number; lojas: string[]; rede_toda: boolean; permissoes: string[]; parametro_grupos?: string[] }
 export interface AppCtx {
   usuario: Usuario;
   ref: any;

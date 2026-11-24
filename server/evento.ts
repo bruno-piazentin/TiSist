@@ -9,7 +9,7 @@ export interface NovoEvento {
   entidadeId?: string | null;      // registro afetado; sem registro (ex.: fechamento), um id novo é gerado
   equipamentoId?: string | null;   // preencha quando o evento deve aparecer no histórico do equipamento
   payload: unknown;                // detalhes (gravado como JSON). Em alterações: { anterior, novo }
-  usuarioId: string;               // quem fez
+  usuarioId: string | null;        // quem fez (null = o próprio sistema)
 }
 
 export async function registrarEvento(db: Db, e: NovoEvento) {

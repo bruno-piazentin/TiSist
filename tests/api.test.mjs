@@ -319,5 +319,57 @@ await caso('PDV: cadastro, periféricos vinculados, situação Parado automátic
   assert.equal(fim.situacao, 'INATIVO');
 });
 
+console.log('Parâmetros e configurações');
+await caso('configurações: permissão por grupo, token nunca devolvido, troca de endereço apaga o token', async () => {
+  // sem grupo: não vê nem altera
+  assert.equal((await chamar(T, 'GET', '/api/configuracoes')).status, 403);
+  assert.equal((await chamar(T, 'PUT', '/api/configuracoes/ZABBIX', { valores: { zabbix_url: 'http://10.0.0.1' } })).status, 403);
+  assert.equal((await chamar(T, 'PUT', '/api/parametros/reincidencia_equip_dias', { valor: 90 })).status, 403);
+
+  const cfgAdm = await chamar(A, 'GET', '/api/configuracoes');
+  assert.equal(cfgAdm.status, 200, JSON.stringify(cfgAdm.dados));
+  assert.deepEqual(cfgAdm.dados.editaveis.sort(), ['MONITOR_PDV', 'REGRAS', 'SEGURANCA', 'ZABBIX']);
+  assert.ok(cfgAdm.dados.servidor.some(s => s.rotulo === 'Banco de dados' && !/sisti123|password/i.test(s.valor)));
+  const antes = Object.fromEntries(cfgAdm.dados.itens.map(i => [i.chave, i]));
+
+  // administrador concede só o grupo ZABBIX ao coordenador
+  const usuarios = (await chamar(A, 'GET', '/api/usuarios')).dados;
+  const uc = usuarios.find(x => x.login === 'coordenador');
+  const salvarCoord = grupos => chamar(A, 'PUT', '/api/usuarios/' + uc.id, { nome: uc.nome, email: uc.email, login: uc.login, perfil_id: uc.perfil_id,
+    departamento_id: uc.departamento_id, alcada_max: uc.alcada_max, ativo: uc.ativo, telefone: uc.telefone, lojas: uc.lojas, parametro_grupos: grupos });
+  assert.equal((await salvarCoord(['ZABBIX'])).status, 200);
+  try {
+    const me = (await chamar(CO, 'GET', '/api/auth/me')).dados;
+    assert.deepEqual(me.parametro_grupos, ['ZABBIX']);
+    assert.equal((await chamar(CO, 'PUT', '/api/parametros/reincidencia_equip_dias', { valor: 90 })).status, 403, 'grupo REGRAS não concedido');
+    assert.equal((await chamar(CO, 'PUT', '/api/configuracoes/MONITOR_PDV', { valores: { pdv_monitor_segundos: '60' } })).status, 403);
+    assert.equal((await chamar(CO, 'PUT', '/api/configuracoes/ZABBIX', { valores: { zabbix_url: 'ftp://zabbix' } })).status, 422);
+
+    let r = await chamar(CO, 'PUT', '/api/configuracoes/ZABBIX', { valores: { zabbix_url: 'http://127.0.0.1:3999/zabbix/', zabbix_token: 'token-de-teste-0123456789' } });
+    assert.equal(r.status, 200, JSON.stringify(r.dados));
+    let itens = (await chamar(CO, 'GET', '/api/configuracoes')).dados.itens;
+    const tok = itens.find(i => i.chave === 'zabbix_token');
+    assert.equal(itens.find(i => i.chave === 'zabbix_url').valor, 'http://127.0.0.1:3999/zabbix', 'barra final removida');
+    assert.equal(tok.configurado, true); assert.equal(tok.valor, null);
+    assert.ok(!JSON.stringify(itens).includes('token-de-teste'), 'token não volta para a tela');
+
+    // outro endereço sem informar token: o token salvo é apagado
+    r = await chamar(CO, 'PUT', '/api/configuracoes/ZABBIX', { valores: { zabbix_url: 'http://127.0.0.2/zabbix' } });
+    assert.equal(r.dados.token_apagado, true);
+    itens = (await chamar(CO, 'GET', '/api/configuracoes')).dados.itens;
+    assert.equal(itens.find(i => i.chave === 'zabbix_token').configurado, false);
+  } finally {
+    await chamar(A, 'PUT', '/api/configuracoes/ZABBIX', { valores: { zabbix_url: antes.zabbix_url.valor, zabbix_token: null } });
+    assert.equal((await salvarCoord([])).status, 200);
+  }
+  assert.equal((await chamar(CO, 'GET', '/api/configuracoes')).status, 403, 'sem grupo de novo');
+
+  // monitor: validação do intervalo
+  assert.equal((await chamar(A, 'PUT', '/api/configuracoes/MONITOR_PDV', { valores: { pdv_monitor_segundos: '5' } })).status, 422);
+  assert.equal((await chamar(A, 'PUT', '/api/configuracoes/MONITOR_PDV', { valores: { pdv_porta_tcp: '70000' } })).status, 422);
+  const r2 = await chamar(A, 'PUT', '/api/configuracoes/MONITOR_PDV', { valores: { pdv_monitor_segundos: antes.pdv_monitor_segundos.valor ?? '60' } });
+  assert.equal(r2.status, 200, JSON.stringify(r2.dados));
+});
+
 console.log(`\n${ok} ok, ${falhas} falha(s)`);
 process.exit(falhas ? 1 : 0);

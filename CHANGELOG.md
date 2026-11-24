@@ -8,6 +8,20 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.4.0 (24/11/2026)
+
+- **Configurações na tela Parâmetros:** endereço e token do Zabbix, intervalo e porta do monitor de PDVs passam a ser
+  alterados na tela (antes, só no `.env.producao` do servidor) e valem na hora, sem reiniciar. Botão **Testar conexão**
+  do Zabbix e situação do último teste de cada integração.
+- Seção **Servidor** (somente leitura): versão, endereço de acesso, certificado, banco (sem senha), sessão, backup e fuso.
+- **Permissão por usuário:** no cadastro do usuário, o administrador marca quais grupos de parâmetros ele pode alterar
+  (Regras de manutenção, Login e segurança, Monitor de PDVs, Zabbix). Quem não tem permissão vê as regras só para leitura.
+- Segurança: o token do Zabbix fica cifrado no banco, nunca volta para a tela nem aparece para o usuário de leitura
+  (pgAdmin); trocar o endereço do Zabbix apaga o token salvo. Toda alteração fica no histórico de auditoria.
+- Na atualização, os valores de `PDV_MONITOR_SEGUNDOS`, `PDV_PORTA_TCP`, `ZABBIX_URL` e `ZABBIX_TOKEN` do
+  `.env.producao` são importados uma vez para a tela.
+- Banco: script `db/14_configuracao.sql` (aplicado automaticamente pelo `sisti atualizar`).
+
 ## 1.3.0 (24/11/2026)
 
 - **Novo menu PDVs:** cadastro de PDV por loja com número, IP, status (Ativo/Inativo) e os equipamentos do checkout
