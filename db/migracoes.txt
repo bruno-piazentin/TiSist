@@ -11,3 +11,4 @@
 09_carga_unidades.sql
 10_visoes_restricao_loja.sql
 11_usuario_leitura.sql
+12_bloqueio_login.sql

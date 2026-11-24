@@ -19,16 +19,58 @@ export async function carregarUsuario(id: string): Promise<Usuario | null> {
   return { ...u, rede_toda: PERFIS_REDE.includes(u.perfil) };
 }
 
+/**
+ * Confere login e senha com bloqueio temporário após erros seguidos (parâmetros login_tentativas_max e
+ * login_bloqueio_minutos). Retorna { id } no acerto; { bloqueadoMin } se o usuário está bloqueado;
+ * {} (com `restam` = tentativas antes do bloqueio) no erro. Login inexistente ou inativo também volta {}.
+ * Enquanto bloqueado, a senha nem é conferida: nem a senha certa entra.
+ */
+async function conferirSenha(login: string, senha: string): Promise<{ id?: string; bloqueadoMin?: number; restam?: number }> {
+  return tx(null, async db => {
+    // FOR UPDATE: tentativas simultâneas do mesmo login são contadas uma de cada vez
+    const u = await db.one(
+      `SELECT id, tentativas_falhas,
+              ceil(extract(epoch FROM bloqueado_ate - now()) / 60)::int AS min_restantes,
+              senha_hash = crypt($2, senha_hash) AS senha_ok
+         FROM usuario WHERE lower(login) = lower($1) AND ativo AND senha_hash IS NOT NULL
+          FOR UPDATE`, [login, senha]);
+    if (!u) return {};
+    if (u.min_restantes > 0) return { bloqueadoMin: u.min_restantes };
+    if (u.senha_ok) {
+      await db.query('UPDATE usuario SET ultimo_acesso = now(), tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = $1', [u.id]);
+      return { id: u.id };
+    }
+    const par = Object.fromEntries((await db.query(
+      `SELECT chave, valor FROM parametro WHERE chave IN ('login_tentativas_max', 'login_bloqueio_minutos')`))
+      .map((p: any) => [p.chave, Number(p.valor)]));
+    const max = par.login_tentativas_max || 3, minutos = par.login_bloqueio_minutos || 5;
+    const falhas = u.tentativas_falhas + 1;
+    if (falhas < max) {
+      await db.query('UPDATE usuario SET tentativas_falhas = $2 WHERE id = $1', [u.id, falhas]);
+      return { restam: max - falhas };
+    }
+    // atingiu o limite: bloqueia e zera a contagem para o próximo ciclo
+    await db.query(`UPDATE usuario SET tentativas_falhas = 0, bloqueado_ate = now() + $2 * interval '1 minute' WHERE id = $1`,
+                   [u.id, minutos]);
+    await registrarEvento(db, { tipo: 'LOGIN_BLOQUEADO', entidade: 'usuario', entidadeId: u.id,
+                                payload: { tentativas: falhas, minutos }, usuarioId: u.id });
+    return { bloqueadoMin: minutos };
+  });
+}
+
 export function rotasSessao(r: Router) {
   r.add('POST', '/api/auth/login', async ({ body }) => {
     const { login, senha } = validar(z.object({ login: z.string().min(1), senha: z.string().min(1) }), body);
-    // bcrypt via pgcrypto: a senha nunca é comparada em texto na aplicação
-    const { rows } = await pool.query(
-      `UPDATE sisti.usuario SET ultimo_acesso = now()
-        WHERE lower(login) = lower($1) AND ativo AND senha_hash IS NOT NULL AND senha_hash = crypt($2, senha_hash)
-        RETURNING id`, [login, senha]);
-    if (!rows[0]) throw new HttpError(401, 'Login ou senha inválidos');
-    const usuario = (await carregarUsuario(rows[0].id))!;
+    const r = await conferirSenha(login, senha);
+    if (r.bloqueadoMin) {
+      throw new HttpError(429, `Acesso bloqueado por excesso de senhas erradas. Tente novamente em ${r.bloqueadoMin} minuto(s) ` +
+                               'ou peça ao administrador para desbloquear.');
+    }
+    if (!r.id) {
+      throw new HttpError(401, r.restam === 1 ? 'Login ou senha inválidos. Atenção: mais um erro bloqueia o acesso.'
+                                              : 'Login ou senha inválidos');
+    }
+    const usuario = (await carregarUsuario(r.id))!;
     return { token: assinarToken(usuario), usuario: { ...usuario, permissoes: permissoesDo(usuario) } };
   }, true);
 
@@ -87,7 +129,7 @@ export function rotasSessao(r: Router) {
     const u = exigir(usuario, 'usuario.gerir');
     return tx(u.id, db => db.query(
       `SELECT u.id, u.nome, u.email, u.login, u.perfil_id, pf.codigo AS perfil, u.departamento_id, u.alcada_max, u.ativo,
-              u.telefone, u.ultimo_acesso,
+              u.telefone, u.ultimo_acesso, CASE WHEN u.bloqueado_ate > now() THEN u.bloqueado_ate END AS bloqueado_ate,
               coalesce(array_agg(ul.loja_id::text) FILTER (WHERE ul.loja_id IS NOT NULL), '{}') AS lojas
          FROM usuario u JOIN perfil pf ON pf.id = u.perfil_id LEFT JOIN usuario_loja ul ON ul.usuario_id = u.id
         GROUP BY u.id, pf.codigo ORDER BY u.nome`));
@@ -98,7 +140,10 @@ export function rotasSessao(r: Router) {
     return tx(atual.id, async db => {
       const row = id
         ? await db.one(`UPDATE usuario SET nome=$2, email=$3, login=$4, perfil_id=$5, departamento_id=$6, alcada_max=$7,
-                          ativo=$8, telefone=$9, senha_hash = CASE WHEN $10::text IS NULL THEN senha_hash ELSE crypt($10, gen_salt('bf', 10)) END
+                          ativo=$8, telefone=$9, senha_hash = CASE WHEN $10::text IS NULL THEN senha_hash ELSE crypt($10, gen_salt('bf', 10)) END,
+                          -- senha nova definida pelo administrador também libera um login bloqueado
+                          tentativas_falhas = CASE WHEN $10::text IS NULL THEN tentativas_falhas ELSE 0 END,
+                          bloqueado_ate = CASE WHEN $10::text IS NULL THEN bloqueado_ate END
                         WHERE id=$1 RETURNING id`,
                        [id, d.nome, d.email, d.login, d.perfil_id, d.departamento_id ?? null, d.alcada_max, d.ativo, d.telefone ?? null, d.senha ?? null])
         : await db.one(`INSERT INTO usuario (nome, email, login, perfil_id, departamento_id, alcada_max, ativo, telefone, senha_hash)
@@ -120,4 +165,15 @@ export function rotasSessao(r: Router) {
   };
   r.post('/api/usuarios', async ({ usuario, body }) => salvarUsuario(exigir(usuario, 'usuario.gerir'), body));
   r.put('/api/usuarios/:id', async ({ usuario, body, params }) => salvarUsuario(exigir(usuario, 'usuario.gerir'), body, params.id));
+
+  // Libera um login bloqueado por senhas erradas antes de o tempo acabar
+  r.post('/api/usuarios/:id/desbloquear', async ({ usuario, params }) => {
+    const u = exigir(usuario, 'usuario.gerir');
+    return tx(u.id, async db => {
+      const row = await db.one('UPDATE usuario SET tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = $1 RETURNING id', [params.id]);
+      if (!row) throw new HttpError(404, 'Usuário não encontrado');
+      await registrarEvento(db, { tipo: 'LOGIN_DESBLOQUEADO', entidade: 'usuario', entidadeId: row.id, payload: {}, usuarioId: u.id });
+      return { ok: true };
+    });
+  });
 }

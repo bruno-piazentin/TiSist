@@ -237,7 +237,7 @@ export function Usuarios() {
         { t: 'Nome', c: u => <><strong>{u.nome}</strong><div className="muted small">{u.email}</div></> }, { t: 'Login', c: u => <span className="mono">{u.login}</span> },
         { t: 'Perfil', c: u => PERFIL[u.perfil] || u.perfil }, { t: 'Alçada', num: true, c: u => Number(u.alcada_max) ? moeda(u.alcada_max, true) : '—' },
         { t: 'Lojas', c: u => u.lojas.length ? u.lojas.map((id: string) => ref.lojas.find((l: any) => l.id === id)?.codigo || '?').join(', ') : <span className="muted">rede (pelo perfil)</span>, movel: false },
-        { t: 'Último acesso', c: u => dataHora(u.ultimo_acesso), movel: false }, { t: 'Situação', c: u => u.ativo ? <span className="pill p-verde">ativo</span> : <span className="pill p-cinza">inativo</span> },
+        { t: 'Último acesso', c: u => dataHora(u.ultimo_acesso), movel: false }, { t: 'Situação', c: u => !u.ativo ? <span className="pill p-cinza">inativo</span> : u.bloqueado_ate ? <span className="pill p-vermelho">bloqueado</span> : <span className="pill p-verde">ativo</span> },
       ]} />}</Carregando></div>
       {editar && <FormUsuario u={editar} onFechar={() => setEditar(null)} onOk={r.recarregar} />}
     </>
@@ -253,9 +253,18 @@ function FormUsuario({ u, onFechar, onOk }: any) {
     const corpo = { ...v, departamento_id: v.departamento_id || null, telefone: v.telefone || null, senha: v.senha || undefined };
     if (await acao.executar(() => u.id ? api('PUT', '/api/usuarios/' + u.id, corpo) : api('POST', '/api/usuarios', corpo))) { avisar('Usuário salvo'); onOk(); onFechar(); }
   };
+  const desbloquear = async () => {
+    if (await acao.executar(() => api('POST', '/api/usuarios/' + u.id + '/desbloquear'))) { avisar('Login desbloqueado'); onOk(); onFechar(); }
+  };
   return (
     <Modal largo titulo={u.id ? 'Editar usuário' : 'Novo usuário'} onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button></>}>
       {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
+      {u.bloqueado_ate && (
+        <div className="aviso atencao" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <span>Login bloqueado por senhas erradas até {dataHora(u.bloqueado_ate)}. Definir uma nova senha também desbloqueia.</span>
+          <button className="btn" disabled={acao.enviando} onClick={desbloquear}>Desbloquear agora</button>
+        </div>
+      )}
       <div className="campos">
         <Campo rotulo="Nome completo" obrigatorio><input value={v.nome} onChange={set('nome')} /></Campo>
         <Campo rotulo="E-mail corporativo" obrigatorio><input type="email" value={v.email} onChange={set('email')} /></Campo>

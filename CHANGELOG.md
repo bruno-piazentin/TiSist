@@ -8,6 +8,16 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.2.0 (24/11/2026)
+
+- **Bloqueio do login por senhas erradas:** depois de 3 senhas erradas seguidas, o usuário fica bloqueado por
+  5 minutos (nem a senha certa entra nesse período). A tela avisa quando falta só uma tentativa.
+- Os dois números podem ser ajustados na tela **Parâmetros** (`login_tentativas_max` e `login_bloqueio_minutos`).
+- Na tela **Usuários**, o login bloqueado aparece como "bloqueado"; o administrador pode clicar em
+  **Desbloquear agora** ou definir uma senha nova (que também desbloqueia).
+- Bloqueios e desbloqueios ficam registrados no histórico (eventos `LOGIN_BLOQUEADO` e `LOGIN_DESBLOQUEADO`).
+- Banco: script `db/12_bloqueio_login.sql` (aplicado automaticamente pelo `sisti atualizar`).
+
 ## 1.1.4 (23/11/2026)
 
 **Manutenção do código** (sem mudança visível para quem usa o sistema)

@@ -250,6 +250,27 @@ await caso('admin cria usuário com lojas e o novo usuário entra', async () => 
   assert.equal(u2.status, 200, JSON.stringify(u2.dados));
   assert.equal((await chamar(null, 'POST', '/api/auth/login', { login, senha: 'senhaforte1' })).status, 401);
 });
+await caso('3 senhas erradas bloqueiam o login; admin desbloqueia', async () => {
+  const perfil = ref.perfis.find(p => p.codigo === 'GERENTE_LOJA');
+  const login = 'blq' + Date.now();
+  const r = await chamar(A, 'POST', '/api/usuarios', { nome: 'Bloqueio Teste', email: login + '@x.com', login, perfil_id: perfil.id, lojas: [L01.id], senha: 'senhaforte1' });
+  assert.equal(r.status, 200, JSON.stringify(r.dados));
+  const tentar = senha => chamar(null, 'POST', '/api/auth/login', { login, senha });
+  assert.equal((await tentar('errada1')).status, 401);
+  const segunda = await tentar('errada2');
+  assert.equal(segunda.status, 401); assert.match(segunda.dados.erro, /mais um erro bloqueia/);
+  assert.equal((await tentar('errada3')).status, 429);
+  assert.equal((await tentar('senhaforte1')).status, 429, 'bloqueado: nem a senha certa entra');
+  const lista = (await chamar(A, 'GET', '/api/usuarios')).dados;
+  assert.ok(lista.find(u => u.id === r.dados.id).bloqueado_ate, 'lista mostra o bloqueio');
+  assert.equal((await chamar(G, 'POST', `/api/usuarios/${r.dados.id}/desbloquear`)).status, 403);
+  assert.equal((await chamar(A, 'POST', `/api/usuarios/${r.dados.id}/desbloquear`)).status, 200);
+  assert.equal((await tentar('senhaforte1')).status, 200);
+  // acerto zera a contagem: dois erros depois do acerto ainda não bloqueiam
+  await tentar('x'); await tentar('y');
+  assert.equal((await tentar('senhaforte1')).status, 200);
+  await chamar(A, 'PUT', `/api/usuarios/${r.dados.id}`, { nome: 'Bloqueio Teste', email: login + '@x.com', login, perfil_id: perfil.id, lojas: [], ativo: false });
+});
 
 console.log(`\n${ok} ok, ${falhas} falha(s)`);
 process.exit(falhas ? 1 : 0);
