@@ -3,9 +3,9 @@ import { z, type ZodObject, type ZodRawShape } from 'zod';
 import { tx } from '../db';
 import { exigir, type Permissao } from '../auth';
 import { HttpError, validar, type Router } from '../http';
+import { registrarEvento } from '../evento';
+import { opcional, uuid } from '../validacao';
 
-const uuid = z.string().uuid();
-const opcional = <T extends z.ZodTypeAny>(s: T) => s.nullish().transform(v => v ?? null);
 // Número com valor padrão: campo vazio/nulo usa o padrão (z.coerce transformaria null em 0)
 const numPadrao = (padrao: number) => z.preprocess(v => (v === null || v === '' ? undefined : v), z.coerce.number().int().min(0).default(padrao));
 const email = z.string().trim().email('E-mail inválido');
@@ -119,8 +119,7 @@ export function rotasCadastros(r: Router) {
         `INSERT INTO ${e.tabela} (${cols.join(',')}) VALUES (${cols.map((_, i) => '$' + (i + 1)).join(',')}) RETURNING id`,
         cols.map(c => d[c]));
       await e.depois?.(db, row.id, d);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('CADASTRO_CRIADO',$1,$2,$3,$4,now())`, [e.tabela, row.id, d, u.id]);
+      await registrarEvento(db, { tipo: 'CADASTRO_CRIADO', entidade: e.tabela, entidadeId: row.id, payload: d, usuarioId: u.id });
       return row;
     });
   });
@@ -140,8 +139,7 @@ export function rotasCadastros(r: Router) {
       await e.depois?.(db, params.id, d);
       // auditoria: valor anterior e novo
       const anterior = Object.fromEntries(cols.map(c => [c, antes[c]]));
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('CADASTRO_ALTERADO',$1,$2,$3,$4,now())`, [e.tabela, params.id, { anterior, novo: d }, u.id]);
+      await registrarEvento(db, { tipo: 'CADASTRO_ALTERADO', entidade: e.tabela, entidadeId: params.id, payload: { anterior, novo: d }, usuarioId: u.id });
       return { id: params.id };
     });
   });
@@ -154,9 +152,8 @@ export function rotasCadastros(r: Router) {
       const antes = await db.one('SELECT valor FROM parametro WHERE chave = $1', [params.chave]);
       if (!antes) throw new HttpError(404, 'Parâmetro inexistente');
       await db.query('UPDATE parametro SET valor = $2 WHERE chave = $1', [params.chave, valor]);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('PARAMETRO_ALTERADO','parametro',gen_random_uuid(),$1,$2,now())`,
-                     [{ chave: params.chave, anterior: antes.valor, novo: valor }, u.id]);
+      await registrarEvento(db, { tipo: 'PARAMETRO_ALTERADO', entidade: 'parametro',
+                                  payload: { chave: params.chave, anterior: antes.valor, novo: valor }, usuarioId: u.id });
       return { ok: true };
     });
   });

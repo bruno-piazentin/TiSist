@@ -5,9 +5,8 @@ import { tx, type Db } from '../db';
 import { exigir, pode } from '../auth';
 import { HttpError, validar, type Router } from '../http';
 import { movimentar } from './equipamentos';
+import { opcional, uuid } from '../validacao';
 
-const uuid = z.string().uuid();
-const opcional = <T extends z.ZodTypeAny>(s: T) => s.nullish().transform(v => (v === '' ? null : v ?? null));
 
 const itemSchema = z.object({
   tipo: z.enum(['PECA', 'MAO_DE_OBRA', 'FRETE', 'DESLOCAMENTO', 'OUTROS']),

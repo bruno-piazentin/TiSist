@@ -21,12 +21,27 @@ API em TypeScript (Node 22), PostgreSQL 16 com regras críticas no banco e PWA e
 ## Estrutura
 
 ```
-db/            Scripts SQL (01 schema, 02 regras, 04 camada de aplicação, 05 dados de demonstração, 90 teste das regras)
-server/        API: main.ts, http.ts (roteador), db.ts (transação + RLS), auth.ts (JWT e RBAC), modules/*
-web/           PWA: index.html, sw.js, styles.css, src/ (React)
-scripts/       build.mjs (esbuild) e db-init.sh
-tests/         api.test.mjs (38 testes de ponta a ponta)
-dist/          Build pronto (server.cjs + web/)
+server/          API (Node + TypeScript)
+  main.ts          ponto de entrada: registra as rotas de cada módulo
+  http.ts          roteador, leitura do corpo, tratamento de erros, arquivos estáticos
+  db.ts            conexão e transação por requisição (define o usuário para o RLS)
+  auth.ts          token de sessão (JWT) e matriz de permissões por perfil
+  validacao.ts     peças de validação reutilizáveis (uuid, opcional, dia, hora)
+  evento.ts        registrarEvento(): grava na linha do tempo / auditoria
+  modules/         um arquivo por assunto: equipamentos, chamados, orcamentos, custos, agenda...
+web/             PWA (React): index.html, sw.js (offline), styles.css
+  src/main.tsx     login, layout (menu, barra do topo) e rotas das telas
+  src/ui.tsx       componentes base (Tabela, Campo, Modal, Opcoes) e formatação
+  src/api.ts       chamadas à API e fila offline;  src/pages/  uma tela (ou grupo de telas) por arquivo
+db/              banco PostgreSQL
+  migracoes.txt    lista, em ordem, dos scripts que montam o banco (produção e desenvolvimento)
+  migrar.sh        aplica os scripts da lista que ainda não rodaram (controle em public.sisti_migracao)
+  NN_*.sql         os scripts; 05_seed_demo.sql = dados fictícios; 90_teste_regras.sql = teste das regras
+scripts/         build.mjs (esbuild), db-init.sh (banco de desenvolvimento), test-banco.sh
+tests/           api.test.mjs (38 testes de ponta a ponta da API)
+deploy/          produção: Caddy (HTTPS), backup, comando "sisti", criação do banco no Docker
+docs/            IMPLANTACAO.md (servidor), MELHORIAS-PENDENTES.md (dívida técnica)
+CHANGELOG.md     o que mudou em cada versão
 ```
 
 > **Produção em servidor interno:** siga [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md) (Docker com HTTPS e backup diário).
@@ -54,7 +69,7 @@ dist/          Build pronto (server.cjs + web/)
    npm start                # http://localhost:3010 (porta definida em PORT no .env)
    ```
 3. **Docker** (alternativa): `docker compose up -d --build` (abre em http://localhost:3010; troque em `SISTI_PORTA` no .env), depois rode os scripts de `db/` no container do banco:
-   `docker compose exec db sh -c 'for f in /sql/01_schema.sql /sql/02_regras.sql /sql/04_app.sql /sql/06_fornecedor_detalhes.sql /sql/08_agenda.sql; do psql -U sisti_owner -d sisti -1 -f $f; done'`
+   `docker compose exec db sh /sql/migrar.sh` (a mesma lista de scripts da produção)
    e defina a senha do `sisti_app` igual a `DB_APP_PASSWORD`.
 
 **HTTPS é obrigatório em produção**: o service worker, a câmera e a fila offline só funcionam em `https://` (ou `localhost`). Use um proxy reverso (Nginx, Caddy ou IIS) com certificado.
@@ -74,10 +89,29 @@ dist/          Build pronto (server.cjs + web/)
 
 ## Testes
 
-```bash
-API_URL=http://localhost:3000 node tests/api.test.mjs   # banco com --demo
-psql -d banco_vazio -f db/01_schema.sql -f db/02_regras.sql -f db/90_teste_regras.sql   # regras SQL isoladas
-```
+| Comando | O que testa | Precisa de |
+| --- | --- | --- |
+| `npm run typecheck` | tipos do TypeScript (servidor e telas) | nada |
+| `npm test` | 38 testes de ponta a ponta da API (login, permissões, restrição por loja, fluxo de chamado, orçamento, custos, baixa, sincronização offline, painel) | servidor rodando com banco `--demo`; informe a porta: `API_URL=http://localhost:3010 npm test` |
+| `npm run test:banco` | regras críticas do banco (transições, segregação de funções, histórico só de inclusão) num banco temporário, criado e apagado pelo próprio teste | `DATABASE_ADMIN_URL=postgres://postgres@localhost:5432/postgres` |
+
+Rode os três antes de publicar uma versão.
+
+## Para quem vai programar
+
+1. **Rodar local:** siga "Como executar" acima com `npm run db:demo` (banco com dados fictícios) e `npm run dev`.
+2. **Mudança no banco:** crie `db/NN_descricao.sql` (que possa rodar duas vezes sem erro) e acrescente o nome no **fim**
+   de `db/migracoes.txt`. Nunca altere um script já publicado: crie outro. `npm run db:init` aplica no seu banco;
+   em produção, o `sisti atualizar` aplica sozinho.
+3. **Nova rota na API:** no módulo do assunto em `server/modules/`, use `exigir(usuario, 'permissao')`, valide a entrada
+   com zod (peças prontas em `server/validacao.ts`), rode o SQL dentro de `tx(u.id, ...)` (ativa a restrição por loja)
+   e registre ações importantes com `registrarEvento()` (`server/evento.ts`).
+4. **Nova tela:** em `web/src/pages/`, usando os componentes de `web/src/ui.tsx` (`Tabela`, `Campo`, `Modal`, `Opcoes`):
+   eles já cuidam de teclado, rótulos e leitor de tela. Registre a rota em `rota()` no `web/src/main.tsx`.
+5. **Publicar versão:** número em `package.json`, notas no `CHANGELOG.md`, testes, tag `vX.Y.Z`
+   (passo a passo em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md), "Publicar uma versão").
+
+Melhorias de código já mapeadas e ainda não feitas: [docs/MELHORIAS-PENDENTES.md](docs/MELHORIAS-PENDENTES.md).
 
 ## Regras importantes para quem mantém o código
 

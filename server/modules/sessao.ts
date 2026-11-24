@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { pool, tx } from '../db';
 import { assinarToken, exigir, permissoesDo, PERFIS_REDE, type Usuario } from '../auth';
 import { HttpError, validar, type Router } from '../http';
+import { registrarEvento } from '../evento';
 
 /** Carrega o usuário ativo com perfil e lojas permitidas. */
 export async function carregarUsuario(id: string): Promise<Usuario | null> {
@@ -112,9 +113,8 @@ export function rotasSessao(r: Router) {
         // a aplicação não tem DELETE; a remoção de vínculo usa função do administrador
         await db.query('SELECT fn_desvincular_lojas($1, $2::uuid[])', [row.id, remover]);
       }
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('USUARIO_SALVO','usuario',$1,$2,$3,now())`,
-                     [row.id, { perfil_id: d.perfil_id, alcada_max: d.alcada_max, ativo: d.ativo, lojas: d.lojas }, atual.id]);
+      await registrarEvento(db, { tipo: 'USUARIO_SALVO', entidade: 'usuario', entidadeId: row.id,
+                                  payload: { perfil_id: d.perfil_id, alcada_max: d.alcada_max, ativo: d.ativo, lojas: d.lojas }, usuarioId: atual.id });
       return { id: row.id };
     });
   };

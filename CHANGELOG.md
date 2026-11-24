@@ -8,6 +8,14 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.1.4 (23/11/2026)
+
+**Manutenção do código** (sem mudança visível para quem usa o sistema)
+- Banco de desenvolvimento montado com a mesma lista de scripts da produção (`db/migracoes.txt`); antes faltavam scripts, inclusive a correção de segurança da 1.1.1.
+- Comandos de teste: `npm test` (API, 38 testes) e `npm run test:banco` (regras do banco em banco temporário, que agora acusa falha automaticamente).
+- Validações e registro no histórico centralizados (`server/validacao.ts`, `server/evento.ts`), no lugar de cópias em vários arquivos.
+- README com a estrutura atual, os testes e um guia para quem vai programar; melhorias futuras registradas em `docs/MELHORIAS-PENDENTES.md`.
+
 ## 1.1.3 (23/11/2026)
 
 **Acessibilidade e uso no celular**

@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { tx, type Db } from '../db';
 import { exigir, pode, type Usuario } from '../auth';
 import { enviarCsv, HttpError, validar, type Router } from '../http';
+import { registrarEvento } from '../evento';
+import { opcional, uuid } from '../validacao';
 
-const uuid = z.string().uuid();
-const opcional = <T extends z.ZodTypeAny>(s: T) => s.nullish().transform(v => (v === '' ? null : v ?? null));
 
 const STATUS = ['ATIVO', 'AGUARDANDO_ORCAMENTO', 'EM_MANUTENCAO', 'TRANSITO', 'EM_ESTOQUE', 'EM_RESERVA', 'SINISTRADO', 'BAIXADO', 'DESCARTADO'] as const;
 
@@ -192,8 +192,8 @@ export function rotasEquipamentos(r: Router) {
          d.status, d.patrimonio, d.data_aquisicao, d.nota_fiscal, d.valor_aquisicao, d.fornecedor_compra_id, garantiaInicio ?? null,
          garantiaFim ?? null, d.garantia_tipo ?? (garantiaFim ? 'FABRICA' : null), d.setor_instalacao, d.ponto_instalacao, d.ip, d.mac,
          d.hostname, d.firmware_versao, d.reserva_id, d.responsavel_uso]);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, equipamento_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('EQUIPAMENTO_CADASTRADO','equipamento',$1,$1,$2,$3,now())`, [row.id, { ...d, numero_serie: serie }, u.id]);
+      await registrarEvento(db, { tipo: 'EQUIPAMENTO_CADASTRADO', entidade: 'equipamento', entidadeId: row.id, equipamentoId: row.id,
+                                  payload: { ...d, numero_serie: serie }, usuarioId: u.id });
       return row;
     });
   });

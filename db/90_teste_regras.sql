@@ -1,7 +1,7 @@
 -- =====================================================================
 -- SisTI - Roteiro de teste do fluxo completo (dados fictícios)
--- Execução: psql -d sisti -f 03_teste.sql
--- Os blocos "esperado: bloqueio" imprimem NOTICE 'OK bloqueado: ...'.
+-- Execução: npm run test:banco (cria um banco temporário só com 01_schema e 02_regras, roda este roteiro e apaga)
+-- Os blocos "esperado: bloqueio" imprimem NOTICE 'OK bloqueado: ...'; se a regra deixar passar, aparece "FALHOU".
 -- =====================================================================
 SET search_path = sisti, public;
 

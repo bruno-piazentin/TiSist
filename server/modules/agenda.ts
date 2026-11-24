@@ -3,12 +3,9 @@ import { z } from 'zod';
 import { tx } from '../db';
 import { exigir } from '../auth';
 import { HttpError, validar, type Router } from '../http';
+import { registrarEvento } from '../evento';
+import { dia, hora, opcional, uuid, vazioNulo } from '../validacao';
 
-const uuid = z.string().uuid();
-const opcional = <T extends z.ZodTypeAny>(s: T) => s.nullish().transform(v => (v === '' ? null : v ?? null));
-const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida');
-const hora = z.string().regex(/^\d{2}:\d{2}$/, 'Hora inválida (HH:MM)');
-const vazioNulo = (v: unknown) => (v === '' ? null : v);
 
 const schema = z.object({
   titulo: z.string().trim().min(3, 'Informe o título'),
@@ -72,8 +69,7 @@ export function rotasAgenda(r: Router) {
         `INSERT INTO agendamento (titulo, tipo, data, hora_inicio, hora_fim, loja_id, fornecedor_id, chamado_id, responsavel_id, descricao, situacao, criado_por)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
         [d.titulo, d.tipo, d.data, d.hora_inicio, d.hora_fim, d.loja_id, d.fornecedor_id, chamado_id, d.responsavel_id, d.descricao, d.situacao, u.id]);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('AGENDAMENTO_CRIADO','agendamento',$1,$2,$3,now())`, [row.id, { ...d, chamado_id }, u.id]);
+      await registrarEvento(db, { tipo: 'AGENDAMENTO_CRIADO', entidade: 'agendamento', entidadeId: row.id, payload: { ...d, chamado_id }, usuarioId: u.id });
       return row;
     });
   });
@@ -89,8 +85,8 @@ export function rotasAgenda(r: Router) {
         `UPDATE agendamento SET titulo=$2, tipo=$3, data=$4, hora_inicio=$5, hora_fim=$6, loja_id=$7, fornecedor_id=$8,
                 chamado_id=$9, responsavel_id=$10, descricao=$11, situacao=$12 WHERE id = $1`,
         [params.id, d.titulo, d.tipo, d.data, d.hora_inicio, d.hora_fim, d.loja_id, d.fornecedor_id, chamado_id, d.responsavel_id, d.descricao, d.situacao]);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('AGENDAMENTO_ALTERADO','agendamento',$1,$2,$3,now())`, [params.id, { anterior: antes, novo: { ...d, chamado_id } }, u.id]);
+      await registrarEvento(db, { tipo: 'AGENDAMENTO_ALTERADO', entidade: 'agendamento', entidadeId: params.id,
+                                  payload: { anterior: antes, novo: { ...d, chamado_id } }, usuarioId: u.id });
       return { id: params.id };
     });
   });

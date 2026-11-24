@@ -5,9 +5,8 @@ import { tx, type Db } from '../db';
 import { exigir, pode, type Usuario } from '../auth';
 import { enviarCsv, HttpError, validar, type Router } from '../http';
 import { movimentar } from './equipamentos';
+import { opcional, uuid } from '../validacao';
 
-const uuid = z.string().uuid();
-const opcional = <T extends z.ZodTypeAny>(s: T) => s.nullish().transform(v => (v === '' ? null : v ?? null));
 
 export const abrirChamadoSchema = z.object({
   id: uuid,                                     // UUID gerado no aparelho

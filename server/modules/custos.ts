@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { tx } from '../db';
 import { exigir } from '../auth';
 import { enviarCsv, HttpError, validar, type Router } from '../http';
+import { registrarEvento } from '../evento';
+import { opcional, uuid } from '../validacao';
 
-const uuid = z.string().uuid();
-const opcional = <T extends z.ZodTypeAny>(s: T) => s.nullish().transform(v => (v === '' ? null : v ?? null));
 const competencia = z.string().regex(/^\d{4}-\d{2}(-01)?$/, 'Use AAAA-MM').transform(s => s.slice(0, 7) + '-01');
 
 export function rotasCustos(r: Router) {
@@ -88,8 +88,8 @@ export function rotasCustos(r: Router) {
                  CASE WHEN EXISTS (SELECT 1 FROM fechamento_mensal WHERE competencia = $9) THEN date_trunc('month', now())::date ELSE $9 END,
                  $10,$11,$12) RETURNING id, competencia`,
         [c.equipamento_id, c.loja_id, c.departamento_id, c.chamado_id, c.orcamento_id, c.fornecedor_id, c.tipo, -c.valor, c.competencia, c.nfe_chave, c.id, u.id]);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, equipamento_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('ESTORNO_MOTIVO','custo',$1,$2,$3,$4,now())`, [row.id, c.equipamento_id, { motivo, estorno_de: c.id }, u.id]);
+      await registrarEvento(db, { tipo: 'ESTORNO_MOTIVO', entidade: 'custo', entidadeId: row.id, equipamentoId: c.equipamento_id,
+                                  payload: { motivo, estorno_de: c.id }, usuarioId: u.id });
       return row;
     });
   });
@@ -111,8 +111,7 @@ export function rotasCustos(r: Router) {
       await db.query('INSERT INTO fechamento_mensal (competencia, fechado_por) VALUES ($1, $2)', [d.competencia, u.id]);
       const resumo = await db.query(`SELECT l.codigo AS loja, sum(c.valor) AS total FROM custo_lancamento c JOIN loja l ON l.id = c.loja_id
                                       WHERE c.competencia = $1 GROUP BY l.codigo ORDER BY l.codigo`, [d.competencia]);
-      await db.query(`INSERT INTO evento (tipo, entidade, entidade_id, payload, usuario_id, ocorrido_em)
-                      VALUES ('COMPETENCIA_FECHADA','fechamento',gen_random_uuid(),$1,$2,now())`, [{ competencia: d.competencia, resumo }, u.id]);
+      await registrarEvento(db, { tipo: 'COMPETENCIA_FECHADA', entidade: 'fechamento', payload: { competencia: d.competencia, resumo }, usuarioId: u.id });
       return { ok: true, resumo };
     });
   });
