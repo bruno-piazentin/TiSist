@@ -25,6 +25,8 @@ export const Ic = {
   sair: (p: P) => <Svg {...p}><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" /><path d="M10 17l-5-5 5-5M5 12h11" /></Svg>,
   seta: (p: P) => <Svg {...p}><path d="m6 9 6 6 6-6" /></Svg>,
   nuvem: (p: P) => <Svg {...p}><path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z" /></Svg>,
+  olho: (p: P) => <Svg {...p}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></Svg>,
+  olhoFechado: (p: P) => <Svg {...p}><path d="M3 3l18 18" /><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></Svg>,
   semNuvem: (p: P) => <Svg {...p}><path d="M3 3l18 18" /><path d="M8.5 6.4A6 6 0 0 1 18 9.5a4 4 0 0 1 2.2 7.4M17 18H7a4.5 4.5 0 0 1-1.4-8.8" /></Svg>,
 };
 export type Icone = (p: P) => ReactElement;

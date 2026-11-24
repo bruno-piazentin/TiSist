@@ -1,7 +1,7 @@
 // Cadastros base (genérico), usuários e parâmetros.
 import { Fragment, useMemo, useState } from 'react';
 import { api } from '../api';
-import { Campo, Carregando, Link, Modal, Opcoes, PERFIL, Tabela, dataHora, moeda, num, useAcao, useApp, useCarregar } from '../ui';
+import { Campo, Carregando, Link, Modal, Opcoes, PERFIL, Tabela, cnpjFmt, dataHora, irPara, moeda, num, useAcao, useApp, useCarregar } from '../ui';
 import { csvLocal, relatorioFicha, relatorioLista, type SecaoRel } from '../relatorio';
 
 /** Minúsculas e sem acentos, para pesquisa ("Santarém" = "santarem"). */
@@ -85,6 +85,7 @@ function exibirValor(d: Def, l: any, ref: any) {
   if (d.tipo === 'multi') return (v || []).join(', ');
   if (d.tipo === 'refmulti') return (v || []).map((id: string) => (ref[d.ref!] || []).find((i: any) => i.id === id)).filter(Boolean).map(d.rotuloRef!).join(', ') || '—';
   if (d.c.includes('valor')) return moeda(v);
+  if (d.c === 'cnpj' && v) return cnpjFmt(v);
   return v === '' || v == null ? '—' : v;
 }
 
@@ -125,7 +126,11 @@ export function Cadastros({ entidade }: { entidade: string }) {
     <>
       <div className="topo"><div><div className="migalha">Cadastros</div><h1>{def.titulo}</h1></div>
         {pode(def.perm) && <div className="acoes"><button className="btn primario" onClick={() => setEditar({})}>Novo</button></div>}</div>
-      <div className="abas" style={{ flexWrap: 'wrap' }}>
+      {/* Celular: lista de seleção no lugar das abas */}
+      <select className="cad-entidade" aria-label="Cadastro" value={entidade} onChange={e => irPara('/cadastros/' + e.target.value)}>
+        {Object.entries(ENT).map(([k, e]) => <option key={k} value={k}>{e.titulo}</option>)}
+      </select>
+      <div className="abas cad-abas" style={{ flexWrap: 'wrap' }}>
         {Object.entries(ENT).map(([k, e]) => <Link key={k} para={'/cadastros/' + k} className={'btn pequeno' + (k === entidade ? ' primario' : '')}>{e.titulo}</Link>)}
       </div>
       <div className="filtros">
@@ -139,7 +144,7 @@ export function Cadastros({ entidade }: { entidade: string }) {
       <div className="card">
         <Carregando {...r}>{() => <Tabela linhas={linhas} onClick={l => setEditar(l)}
           vazio={busca ? 'Nenhum registro encontrado para a pesquisa' : undefined}
-          colunas={def.campos.filter(c => c.tabela).map(d => ({ t: d.r, c: (l: any) => exibir(d, l), num: d.tipo === 'numero' }))} />}</Carregando>
+          colunas={def.campos.filter(c => c.tabela).map((d, i) => ({ t: d.r, c: (l: any) => exibir(d, l), num: d.tipo === 'numero', movel: i < 2 }))} />}</Carregando>
       </div>
       {editar && <FormCadastro entidade={entidade} titulo={def.titulo} def={def.campos} registro={editar} somenteLeitura={!pode(def.perm)}
         onFechar={() => setEditar(null)} onOk={() => { r.recarregar(); recarregarRef(); }} />}
@@ -164,7 +169,7 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
     relatorioFicha(String(nome), `Ficha de ${titulo.toLowerCase()} · ${usuario.nome}`, secoes);
   };
   const marcasDoFabricante = entidade === 'fabricantes' && registro.id ? ref.marcaFabricante.filter((m: any) => m.fabricante_id === registro.id).map((m: any) => m.marca_id) : [];
-  const [v, setV] = useState<any>(() => Object.fromEntries(def.map(d => [chave(d), entidade === 'fabricantes' && d.c === 'marcas' ? marcasDoFabricante : ler(d, registro) ?? (d.tipo === 'bool' ? (d.c === 'ativo' || d.c === 'ativo_catalogo') : d.tipo === 'multi' || d.tipo === 'refmulti' ? [] : '')])));
+  const [v, setV] = useState<any>(() => Object.fromEntries(def.map(d => [chave(d), entidade === 'fabricantes' && d.c === 'marcas' ? marcasDoFabricante : (d.c === 'cnpj' && ler(d, registro) ? cnpjFmt(ler(d, registro)) : ler(d, registro)) ?? (d.tipo === 'bool' ? (d.c === 'ativo' || d.c === 'ativo_catalogo') : d.tipo === 'multi' || d.tipo === 'refmulti' ? [] : '')])));
   const acao = useAcao();
   const set = (c: string, x: any) => setV((s: any) => ({ ...s, [c]: x }));
   const salvar = async () => {
@@ -195,7 +200,7 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
       {registro.id && <button className="btn" style={{ marginRight: 'auto' }} onClick={gerarFicha}>Relatório</button>}
       <button className="btn" onClick={onFechar}>{somenteLeitura ? 'Fechar' : 'Cancelar'}</button>
       {!somenteLeitura && <button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button>}</>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <fieldset disabled={somenteLeitura} className="campos" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {def.map(d => { const k = chave(d); return (<Fragment key={k}>
           {d.secao && <h3 className="secao-form">{d.secao}</h3>}
@@ -250,7 +255,7 @@ function FormUsuario({ u, onFechar, onOk }: any) {
   };
   return (
     <Modal largo titulo={u.id ? 'Editar usuário' : 'Novo usuário'} onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="campos">
         <Campo rotulo="Nome completo" obrigatorio><input value={v.nome} onChange={set('nome')} /></Campo>
         <Campo rotulo="E-mail corporativo" obrigatorio><input type="email" value={v.email} onChange={set('email')} /></Campo>
@@ -282,7 +287,7 @@ export function Parametros() {
   return (
     <>
       <div className="topo"><div><div className="migalha">Cadastros</div><h1>Parâmetros</h1></div></div>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="card">
         <p className="muted small">Janelas de reincidência, percentuais de alerta e regras de cotação. Alterações ficam registradas no histórico de auditoria.{!pode('parametro.gerir') && ' Somente o administrador altera.'}</p>
         <Tabela linhas={ref.parametros} chave="chave" colunas={[

@@ -64,9 +64,9 @@ export function DecidirOrcamento({ id, onFechar, onOk }: { id: string; onFechar:
         const pctOrc = o.valor_aquisicao ? ((Number(o.custo_acumulado || 0) + Number(o.valor_total)) / o.valor_aquisicao) * 100 : null;
         return (
           <>
-            {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+            {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
             {o.em_garantia && <div className="aviso atencao">Equipamento em garantia: confirme se o fabricante foi acionado.</div>}
-            {pctOrc !== null && pctOrc >= 50 && <div className="aviso erro">Com este orçamento, o custo acumulado chega a {num(pctOrc, 0)}% do valor de compra: avalie a substituição.</div>}
+            {pctOrc !== null && pctOrc >= 50 && <div className="aviso erro" role="alert">Com este orçamento, o custo acumulado chega a {num(pctOrc, 0)}% do valor de compra: avalie a substituição.</div>}
             <div className="grade g2">
               <div><dl className="dl">
                 <dt>Orçamento</dt><dd>nº {o.numero} v{o.versao} <Pill mapa={STATUS_ORC} valor={o.status} /></dd><dt>Fornecedor</dt><dd>{o.fornecedor}</dd>
@@ -106,7 +106,7 @@ function DecidirBaixa({ b, onFechar, onOk }: any) {
       <button className="btn" onClick={onFechar}>Fechar</button>
       <button className="btn" disabled={acao.enviando || justificativa.length < 3} onClick={() => decidir(false)}>Rejeitar</button>
       <button className="btn perigo" disabled={acao.enviando || justificativa.length < 3} onClick={() => decidir(true)}>Aprovar {b.tipo === 'BAIXA' ? 'baixa' : 'descarte'}</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <dl className="dl"><dt>Status atual</dt><dd><Pill mapa={STATUS} valor={b.status} /></dd><dt>Motivo</dt><dd>{b.motivo}</dd>{b.certificado && <><dt>Certificado</dt><dd>{b.certificado}</dd></>}
         <dt>Custo acumulado</dt><dd>{moeda(b.custo_acumulado)} de {moeda(b.valor_aquisicao)}</dd><dt>Solicitante</dt><dd>{b.solicitante}</dd></dl>
       <div style={{ marginTop: 14 }}><Campo rotulo="Justificativa" obrigatorio><textarea value={justificativa} onChange={e => setJustificativa(e.target.value)} /></Campo></div>

@@ -44,7 +44,7 @@ function Resolver({ c, onFechar, onOk }: any) {
   const salvar = async () => { if (await acao.executar(() => api('POST', `/api/sync/conflitos/${c.id}/resolver`, { resolucao }))) { avisar('Conflito resolvido'); onOk(); onFechar(); } };
   return (
     <Modal titulo="Resolver conflito" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando || resolucao.length < 3} onClick={salvar}>Marcar como resolvido</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="aviso atencao">{c.erro}</div>
       <pre className="mono small" style={{ background: '#f4f5f2', padding: 10, borderRadius: 6, overflowX: 'auto' }}>{JSON.stringify(c.payload, null, 2)}</pre>
       <Campo rotulo="O que foi feito (ex.: refeita a movimentação correta)" obrigatorio><textarea value={resolucao} onChange={e => setResolucao(e.target.value)} /></Campo>

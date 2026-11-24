@@ -75,7 +75,7 @@ export function Agenda() {
       </div>
       <div className="filtros">
         <Opcoes itens={ref.lojas} valor={loja} onChange={setLoja} vazio="Todas as lojas" rotulo={l => `${l.codigo} – ${l.nome_fantasia}`} />
-        <select value={resp} onChange={e => setResp(e.target.value)}>
+        <select aria-label="Responsável" value={resp} onChange={e => setResp(e.target.value)}>
           <option value="">Todos os responsáveis</option>
           <option value="EU">Meus agendamentos</option>
           {(responsaveis.dados ?? []).map((p: any) => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -90,7 +90,7 @@ export function Agenda() {
             <button className="btn pequeno" onClick={() => mudarMes(1)} aria-label="Próximo mês">›</button>
             <button className="btn pequeno" onClick={irHoje}>Hoje</button>
           </div>
-          {r.erro && <div className="aviso erro">{r.erro}</div>}
+          {r.erro && <div className="aviso erro" role="alert">{r.erro}</div>}
           <div className="cal-grade" role="grid">
             {SEMANA.map(s => <div key={s} className="cal-semana">{s}</div>)}
             {dias.map(d => {
@@ -183,7 +183,7 @@ function FormAgendamento({ inicial, responsaveis, somenteLeitura, onFechar, onOk
       <button className="btn" onClick={onFechar}>Fechar</button>
       <button className="btn primario" disabled={acao.enviando || !!invalido} onClick={() => salvar()}>Salvar</button>
     </>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       {!novo && <div style={{ marginBottom: 10 }}><Pill mapa={SITUACAO_AGENDA} valor={v.situacao} /> <span className="muted small">criado por {inicial.criado_por}</span></div>}
       <fieldset disabled={somenteLeitura} className="campos" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <Campo rotulo="Título" obrigatorio largo><input value={v.titulo} onChange={set('titulo')} autoFocus placeholder="Ex.: Visita para aferição das balanças" maxLength={120} /></Campo>

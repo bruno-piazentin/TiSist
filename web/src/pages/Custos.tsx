@@ -25,7 +25,7 @@ export function Custos() {
         </div>
       </div>
       <div className="filtros">
-        <input type="month" value={competencia} onChange={e => setCompetencia(e.target.value)} />
+        <input type="month" aria-label="Competência" value={competencia} onChange={e => setCompetencia(e.target.value)} />
         <Opcoes itens={ref.lojas} valor={loja} onChange={setLoja} vazio="Todas as lojas" rotulo={l => `${l.codigo} – ${l.nome_fantasia}`} />
         {fechado && <span className="pill p-cinza" style={{ alignSelf: 'center' }}>Competência fechada em {dataHora(fechado)}</span>}
       </div>
@@ -78,7 +78,7 @@ export function LancarCusto({ inicial = {}, rotuloEquip, onFechar, onOk }: { ini
   };
   return (
     <Modal titulo="Lançar custo real" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando || !v.equipamento_id || !v.valor} onClick={salvar}>Lançar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="campos">
         {inicial.equipamento_id ? <Campo rotulo="Equipamento" largo><input disabled value={escolhido} /></Campo> : (
           <Campo rotulo="Equipamento" obrigatorio largo>
@@ -106,7 +106,7 @@ function Estornar({ c, onFechar, onOk }: any) {
   const salvar = async () => { if (await acao.executar(() => api('POST', `/api/custos/${c.id}/estornar`, { motivo }))) { avisar('Estorno lançado'); onOk(); onFechar(); } };
   return (
     <Modal titulo="Estornar lançamento" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn perigo" disabled={acao.enviando || motivo.length < 5} onClick={salvar}>Estornar {moeda(c.valor)}</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <p>{TIPO_CUSTO[c.tipo]} de {moeda(c.valor)} em {c.equipamento} ({String(c.competencia).slice(0, 7)}). Se a competência estiver fechada, o estorno entra no mês corrente.</p>
       <Campo rotulo="Motivo" obrigatorio><textarea value={motivo} onChange={e => setMotivo(e.target.value)} /></Campo>
     </Modal>
@@ -121,7 +121,7 @@ function FecharCompetencia({ onFechar, onOk }: any) {
   const salvar = async () => { const r = await acao.executar(() => api('POST', '/api/fechamentos', { competencia })); if (r) { avisar(`Competência ${competencia} fechada`); onOk(); onFechar(); } };
   return (
     <Modal titulo="Fechar competência" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando} onClick={salvar}>Fechar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="aviso atencao">Depois de fechada, a competência não recebe lançamentos. Notas atrasadas entram no mês aberto.</div>
       <Campo rotulo="Competência"><input type="month" value={competencia} onChange={e => setCompetencia(e.target.value)} /></Campo>
     </Modal>

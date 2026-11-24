@@ -1,5 +1,5 @@
 // Componentes de interface, formatação e estado global do app.
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { cloneElement, createContext, isValidElement, useCallback, useContext, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 // ---------------- formatação ----------------
 const fMoeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -13,6 +13,8 @@ export const data = (v: unknown) => {
   return new Date(s).toLocaleDateString('pt-BR');
 };
 export const dataHora = (v: unknown) => (v ? new Date(String(v)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+/** CNPJ com pontuação (00.000.000/0000-00); outros valores ficam como estão. */
+export const cnpjFmt = (v: unknown) => { const s = String(v ?? ''); return /^\d{14}$/.test(s) ? s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : s; };
 export const mesAno = (v: string) => { const [a, m] = v.split('-'); return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(m) - 1] + '/' + a.slice(2); };
 
 // ---------------- rótulos ----------------
@@ -105,22 +107,48 @@ export function useCarregar<T>(fn: () => Promise<T>, deps: unknown[] = []) {
 
 // Mantém o conteúdo anterior durante recargas (evita piscar e preserva modais abertos)
 export function Carregando({ erro, carregando, dados, children }: { erro?: string; carregando: boolean; dados?: unknown; children: () => ReactNode }) {
-  if (erro) return <div className="aviso erro">{erro}</div>;
+  if (erro) return <div className="aviso erro" role="alert">{erro}</div>;
   if (carregando && dados === undefined) return <div className="muted" style={{ padding: 20 }}>Carregando…</div>;
   return <>{children()}</>;
 }
 
 // ---------------- modal e formulário ----------------
+const FOCAVEIS = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const focaveisEm = (el: HTMLElement) => [...el.querySelectorAll<HTMLElement>(FOCAVEIS)].filter(x => x.offsetParent !== null);
+
 export function Modal({ titulo, onFechar, children, rodape, largo }: { titulo: string; onFechar: () => void; children: ReactNode; rodape?: ReactNode; largo?: boolean }) {
+  const caixa = useRef<HTMLDivElement>(null);
+  const tituloId = useId();
+  // Ao abrir: foco no primeiro campo (no celular, na própria janela, para não abrir o teclado); ao fechar: volta ao botão de origem
   useEffect(() => {
-    const f = (e: KeyboardEvent) => e.key === 'Escape' && onFechar();
+    const anterior = document.activeElement as HTMLElement | null;
+    const el = caixa.current!;
+    const toque = window.matchMedia?.('(pointer: coarse)').matches;
+    const campo = toque ? null : el.querySelector<HTMLElement>('.modal-corpo :is(input, select, textarea):not([disabled]):not([type=hidden])');
+    (campo || el).focus({ preventScroll: true });
+    return () => { if (anterior && document.contains(anterior)) anterior.focus({ preventScroll: true }); };
+  }, []);
+  useEffect(() => {
+    const f = (e: KeyboardEvent) => {
+      const el = caixa.current;
+      // com janelas empilhadas, só a de cima responde
+      if (!el || el.closest('.modal-fundo')?.nextElementSibling?.classList.contains('modal-fundo')) return;
+      if (e.key === 'Escape') { onFechar(); return; }
+      if (e.key !== 'Tab') return;
+      const lista = focaveisEm(el);
+      if (!lista.length) { e.preventDefault(); return; }
+      const primeiro = lista[0], ultimo = lista[lista.length - 1];
+      const dentro = el.contains(document.activeElement);
+      if (e.shiftKey && (!dentro || document.activeElement === primeiro || document.activeElement === el)) { e.preventDefault(); ultimo.focus(); }
+      else if (!e.shiftKey && (!dentro || document.activeElement === ultimo)) { e.preventDefault(); primeiro.focus(); }
+    };
     window.addEventListener('keydown', f);
     return () => window.removeEventListener('keydown', f);
   }, [onFechar]);
   return (
     <div className="modal-fundo" onMouseDown={e => e.target === e.currentTarget && onFechar()}>
-      <div className={'modal' + (largo ? ' largo' : '')} role="dialog" aria-label={titulo}>
-        <div className="modal-topo"><h2>{titulo}</h2><button className="fechar" onClick={onFechar} aria-label="Fechar">×</button></div>
+      <div ref={caixa} className={'modal' + (largo ? ' largo' : '')} role="dialog" aria-modal="true" aria-labelledby={tituloId} tabIndex={-1}>
+        <div className="modal-topo"><h2 id={tituloId}>{titulo}</h2><button type="button" className="fechar" onClick={onFechar} aria-label="Fechar janela">×</button></div>
         <div className="modal-corpo">{children}</div>
         {rodape && <div className="modal-rodape">{rodape}</div>}
       </div>
@@ -129,14 +157,28 @@ export function Modal({ titulo, onFechar, children, rodape, largo }: { titulo: s
 }
 
 export function Campo({ rotulo, obrigatorio, largo, children }: { rotulo: string; obrigatorio?: boolean; largo?: boolean; children: ReactNode }) {
-  return <div className={'campo' + (largo ? ' largo' : '')}><label>{rotulo}{obrigatorio && <span className="obr"> *</span>}</label>{children}</div>;
+  const id = useId();
+  // Campo simples (input, select, textarea ou lista de opções): o rótulo aponta para ele.
+  // Conteúdo composto (caixas de seleção etc.): o rótulo nomeia o grupo.
+  const ligavel = isValidElement(children) && (['input', 'select', 'textarea'].includes(children.type as string) || children.type === Opcoes);
+  const filho = children as ReactElement<{ id?: string }>;
+  const campoId = ligavel ? (filho.props.id ?? id) : undefined;
+  return (
+    <div className={'campo' + (largo ? ' largo' : '')} role={ligavel ? undefined : 'group'} aria-labelledby={ligavel ? undefined : id + '-r'}>
+      <label id={id + '-r'} htmlFor={campoId}>{rotulo}{obrigatorio && <span className="obr" aria-hidden="true"> *</span>}{obrigatorio && <span className="sr-only"> (obrigatório)</span>}</label>
+      {ligavel ? cloneElement(filho, { id: campoId }) : children}
+    </div>
+  );
 }
 
-export function Opcoes({ itens, valor, onChange, vazio = 'Selecione…', rotulo, obrigatorio, disabled }: {
+export function Opcoes({ itens, valor, onChange, vazio = 'Selecione…', rotulo, obrigatorio, disabled, id, nome }: {
   itens: any[]; valor: string; onChange: (v: string) => void; vazio?: string | false; rotulo: (i: any) => string; obrigatorio?: boolean; disabled?: boolean;
+  id?: string; nome?: string;   // nome: rótulo para leitor de tela quando não há <Campo> (filtros)
 }) {
+  // Fora de um <Campo> (filtro), o texto da opção vazia ("Todas as lojas") serve de nome
+  const nomeAcessivel = id ? undefined : nome ?? (typeof vazio === 'string' && vazio !== 'Selecione…' ? vazio : undefined);
   return (
-    <select value={valor ?? ''} onChange={e => onChange(e.target.value)} required={obrigatorio} disabled={disabled}>
+    <select id={id} aria-label={nomeAcessivel} value={valor ?? ''} onChange={e => onChange(e.target.value)} required={obrigatorio} disabled={disabled}>
       {vazio !== false && <option value="">{vazio}</option>}
       {itens.map(i => <option key={i.id ?? i.valor} value={i.id ?? i.valor}>{rotulo(i)}</option>)}
     </select>
@@ -180,7 +222,9 @@ export function Tabela({ colunas, linhas, onClick, vazio = 'Nenhum registro', ch
         <tbody>
           {linhas.length === 0 && <tr><td colSpan={colunas.length} className="vazio">{vazio}</td></tr>}
           {linhas.map((l, i) => (
-            <tr key={l[chave] ?? i} className={onClick ? 'clicavel' : ''} onClick={onClick ? () => onClick(l) : undefined}>
+            <tr key={l[chave] ?? i} className={onClick ? 'clicavel' : ''} onClick={onClick ? () => onClick(l) : undefined}
+              tabIndex={onClick ? 0 : undefined}
+              onKeyDown={onClick ? e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) { e.preventDefault(); onClick(l); } } : undefined}>
               {colunas.map(c => <td key={c.t} className={(c.num ? 'num ' : '') + (c.movel === false ? 'esconder-movel' : '')}>{c.c(l)}</td>)}
             </tr>
           ))}

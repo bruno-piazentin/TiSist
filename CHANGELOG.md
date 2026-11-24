@@ -8,6 +8,22 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.1.3 (23/11/2026)
+
+**Acessibilidade e uso no celular**
+- Listas (equipamentos, chamados, cadastros): o registro também abre pelo teclado (Tab até a linha e Enter).
+- Formulários: rótulos ligados aos campos (leitor de tela anuncia o nome e se é obrigatório; clicar no rótulo leva ao campo). Filtros com nome.
+- Janelas: o foco entra na janela, o Tab não escapa para a página de trás e, ao fechar, volta ao botão que a abriu.
+- Celular: campos com fonte de 16px (o iPhone não amplia mais a tela ao tocar) e botões e campos com 44px de altura.
+- Cores com contraste adequado nos textos em cinza claro, nos títulos do menu e nas pílulas verde e azul.
+- Avisos anunciados pelo leitor de tela; mensagens de erro ficam até serem fechadas.
+- Cadastros no celular: lista de seleção no lugar das abas e só as colunas principais na tabela.
+- Menu inferior do celular com até 5 itens (Aprovar só para quem aprova; Fila quando há pendência ou sem conexão). Aprovações, Custos e Fila também no menu do usuário.
+- CNPJ formatado (00.000.000/0000-00) nas listas, relatórios e formulários.
+- Login com botão de mostrar/ocultar a senha.
+- Atalho "Pular para o conteúdo" para quem usa teclado, e foco no conteúdo ao trocar de tela.
+- Respeita a opção "reduzir movimento" do aparelho.
+
 ## 1.1.2 (23/11/2026)
 
 **Implantação**

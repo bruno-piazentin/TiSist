@@ -19,6 +19,7 @@ function Login({ onEntrar }: { onEntrar: (u: Usuario) => void }) {
   const [senha, setSenha] = useState('');
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [verSenha, setVerSenha] = useState(false);
   const entrar = async (e: React.FormEvent) => {
     e.preventDefault(); setErro(''); setEnviando(true);
     try {
@@ -32,9 +33,16 @@ function Login({ onEntrar }: { onEntrar: (u: Usuario) => void }) {
     <div className="login">
       <form className="card" onSubmit={entrar}>
         <div className="marca"><img src="/icon.svg" alt="" /><div><h1>SisTI</h1><div className="muted small">Manutenção de equipamentos de TI</div></div></div>
-        {erro && <div className="aviso erro">{erro}</div>}
-        <div className="campo" style={{ marginBottom: 12 }}><label>Login</label><input value={login} onChange={e => setLogin(e.target.value)} autoFocus autoComplete="username" required /></div>
-        <div className="campo" style={{ marginBottom: 18 }}><label>Senha</label><input type="password" value={senha} onChange={e => setSenha(e.target.value)} autoComplete="current-password" required /></div>
+        {erro && <div className="aviso erro" role="alert">{erro}</div>}
+        <div className="campo" style={{ marginBottom: 12 }}><label htmlFor="login-usuario">Login</label><input id="login-usuario" value={login} onChange={e => setLogin(e.target.value)} autoFocus autoComplete="username" autoCapitalize="none" spellCheck={false} required /></div>
+        <div className="campo" style={{ marginBottom: 18 }}><label htmlFor="login-senha">Senha</label>
+          <div className="senha-caixa">
+            <input id="login-senha" type={verSenha ? 'text' : 'password'} value={senha} onChange={e => setSenha(e.target.value)} autoComplete="current-password" required />
+            <button type="button" className="ver-senha" onClick={() => setVerSenha(v => !v)} aria-pressed={verSenha} aria-label={verSenha ? 'Ocultar senha' : 'Mostrar senha'}>
+              {verSenha ? <Ic.olhoFechado tamanho={18} /> : <Ic.olho tamanho={18} />}
+            </button>
+          </div>
+        </div>
         <button className="btn primario" style={{ width: '100%', justifyContent: 'center' }} disabled={enviando}>{enviando ? 'Entrando…' : 'Entrar'}</button>
       </form>
     </div>
@@ -94,6 +102,9 @@ function MenuUsuario({ usuario, online, filaQtd, onSair }: { usuario: Usuario; o
             {filaQtd > 0 && <> · <a href="/fila" onClick={e => { e.preventDefault(); ir('/fila'); }}>{filaQtd} na fila</a></>}
           </div>
           <div className="usuario-links so-movel">
+            {(pode('orcamento.aprovar') || pode('baixa.aprovar')) && <button role="menuitem" onClick={() => ir('/aprovacoes')}><Ic.aprovacoes tamanho={18} />Aprovações</button>}
+            <button role="menuitem" onClick={() => ir('/custos')}><Ic.custos tamanho={18} />Custos</button>
+            <button role="menuitem" onClick={() => ir('/fila')}><Ic.fila tamanho={18} />Fila offline</button>
             <button role="menuitem" onClick={() => ir('/cadastros/lojas')}><Ic.cadastros tamanho={18} />Cadastros base</button>
             {pode('usuario.gerir') && <button role="menuitem" onClick={() => ir('/usuarios')}><Ic.usuarios tamanho={18} />Usuários</button>}
             <button role="menuitem" onClick={() => ir('/parametros')}><Ic.parametros tamanho={18} />Parâmetros</button>
@@ -122,8 +133,17 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   const avisar = useCallback((texto: string, tipo: 'ok' | 'erro' | 'info' = 'ok') => {
     const id = Date.now() + Math.random();
     setToasts(t => [...t, { id, texto, tipo }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
+    // Confirmações somem sozinhas; erros ficam até a pessoa fechar
+    if (tipo !== 'erro') setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
   }, []);
+  const fecharAviso = (id: number) => setToasts(t => t.filter(x => x.id !== id));
+  // Ao trocar de tela, o foco vai para o conteúdo (leitor de tela anuncia a nova página)
+  const conteudo = useRef<HTMLElement>(null);
+  const primeiraTela = useRef(true);
+  useEffect(() => {
+    if (primeiraTela.current) { primeiraTela.current = false; return; }
+    conteudo.current?.focus({ preventScroll: true });
+  }, [caminho]);
   const recarregarRef = useCallback(async () => {
     try { setRef((await getComCache('/api/ref')).dados); } catch (e: any) { avisar('Não foi possível carregar os cadastros: ' + e.message, 'erro'); }
   }, [avisar]);
@@ -165,6 +185,7 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   const aprovacoes = Number(pend.orcamentos_pendentes || 0) + Number(pend.baixas_pendentes || 0);
 
   const filaTotal = filaQtd + Number(pend.conflitos_sync || 0);
+  const podeAprovar = pode('orcamento.aprovar') || pode('baixa.aprovar');
   const item = (para: string, rotulo: string, Icone: IconeT, badge = 0, base = para) => (
     <Link para={para} className={'nav-item ' + ativo(base)} rotulo={rotulo}>
       <span className="nav-ic"><Icone />{badge > 0 && <i className="nav-ponto" />}</span>
@@ -175,8 +196,9 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
 
   return (
     <App.Provider value={ctx}>
+      <a href="#conteudo" className="pular" onClick={e => { e.preventDefault(); conteudo.current?.focus(); }}>Pular para o conteúdo</a>
       <div className={'app' + (recolhido ? ' recolhido' : '')}>
-        <aside className="sidebar">
+        <aside className="sidebar" aria-label="Menu principal">
           <div className="logo">
             <img src="/icon.svg" alt="" />
             <div className="logo-txt">SisTI<small>Manutenção de TI</small></div>
@@ -210,21 +232,31 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
             </div>
             <MenuUsuario usuario={usuario} online={online} filaQtd={filaQtd} onSair={onSair} />
           </header>
-          <main className="main">
+          <main className="main" id="conteudo" ref={conteudo} tabIndex={-1}>
             {!online && <div className="faixa-offline"><span><strong>Sem conexão.</strong> Abertura de chamado, recebimento e teste ficam na fila e serão enviados quando a conexão voltar.</span>{filaQtd > 0 && <Link para="/fila">{filaQtd} na fila</Link>}</div>}
             {rota(caminho)}
           </main>
         </div>
-        <nav className="menu-movel">
+        {/* Celular: no máximo 5 itens. O 5º é a Fila quando há pendência ou sem conexão; senão, Aprovar para quem aprova.
+            Os demais ficam no menu do usuário (canto superior direito). */}
+        <nav className="menu-movel" aria-label="Menu principal">
           <Link para="/" className={ativo('/')}><Ic.painel />Painel</Link>
           <Link para="/equipamentos" className={ativo('/equipamentos')}><Ic.equipamentos />Equip.</Link>
           <Link para="/chamados" className={ativo('/chamados')}><Ic.chamados />Chamados</Link>
           <Link para="/agenda" className={ativo('/agenda')}><Ic.agenda />Agenda</Link>
-          <Link para="/aprovacoes" className={ativo('/aprovacoes')}><Ic.aprovacoes />Aprovar{aprovacoes > 0 && <i className="nav-ponto" />}</Link>
-          <Link para="/fila" className={ativo('/fila')}><Ic.fila />Fila{filaQtd ? ` (${filaQtd})` : ''}</Link>
+          {filaTotal > 0 || !online
+            ? <Link para="/fila" className={ativo('/fila')}><Ic.fila />Fila{filaTotal ? ` (${filaTotal})` : ''}</Link>
+            : podeAprovar && <Link para="/aprovacoes" className={ativo('/aprovacoes')}><Ic.aprovacoes />Aprovar{aprovacoes > 0 && <i className="nav-ponto" aria-label={`${aprovacoes} pendente(s)`} />}</Link>}
         </nav>
       </div>
-      <div className="toasts">{toasts.map(t => <div key={t.id} className={'toast ' + t.tipo}>{t.texto}</div>)}</div>
+      <div className="toasts" aria-live="polite">
+        {toasts.map(t => (
+          <div key={t.id} className={'toast ' + t.tipo} role={t.tipo === 'erro' ? 'alert' : 'status'}>
+            <span>{t.texto}</span>
+            {t.tipo === 'erro' && <button type="button" className="toast-fechar" onClick={() => fecharAviso(t.id)} aria-label="Fechar aviso">×</button>}
+          </div>
+        ))}
+      </div>
     </App.Provider>
   );
 }

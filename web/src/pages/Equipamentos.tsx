@@ -29,7 +29,7 @@ export function Equipamentos() {
         </div>
       </div>
       <div className="filtros">
-        <input type="search" placeholder="Buscar descrição, série, patrimônio, modelo ou ponto…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} />
+        <input type="search" aria-label="Pesquisar equipamentos" placeholder="Buscar descrição, série, patrimônio, modelo ou ponto…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} />
         <Opcoes itens={ref.lojas} valor={f.loja} onChange={v => setF({ ...f, loja: v })} vazio="Todas as lojas" rotulo={l => `${l.codigo} – ${l.nome_fantasia}`} />
         <Opcoes itens={Object.entries(STATUS).map(([k, s]) => ({ valor: k, nome: s.rotulo }))} valor={f.status} onChange={v => setF({ ...f, status: v })} vazio="Todos os status" rotulo={s => s.nome} />
         <Opcoes itens={ref.grupos} valor={f.grupo} onChange={v => setF({ ...f, grupo: v })} vazio="Todos os grupos" rotulo={g => g.nome} />
@@ -100,7 +100,7 @@ function LerCodigo({ onFechar }: { onFechar: () => void }) {
   return (
     <Modal titulo="Ler código do equipamento" onFechar={onFechar}>
       <form onSubmit={e => { e.preventDefault(); buscar(codigo); }}>
-        {erro && <div className="aviso erro">{erro}</div>}
+        {erro && <div className="aviso erro" role="alert">{erro}</div>}
         <Campo rotulo="QR code, patrimônio ou número de série"><input autoFocus value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="Aponte o leitor ou digite" /></Campo>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <button className="btn primario">Buscar</button>
@@ -139,7 +139,7 @@ export function EquipamentoNovo() {
       <Voltar padrao="/equipamentos" />
       <div className="topo"><div><div className="migalha"><Link para="/equipamentos">Equipamentos</Link></div><h1>Novo equipamento</h1></div></div>
       <form className="card" onSubmit={e => { e.preventDefault(); salvar(); }}>
-        {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+        {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
         <h3>Obrigatórios</h3>
         <div className="campos">
           <Campo rotulo="Descrição" obrigatorio><input required autoFocus value={v.descricao} onChange={set('descricao')} placeholder="Vazio = descrição do modelo" /></Campo>
@@ -239,7 +239,7 @@ export function EquipamentoDetalhe({ id }: { id: string }) {
           {offline && <div className="aviso atencao">Exibindo cópia guardada no aparelho.</div>}
           {e.chamado_aberto && <div className="aviso info">Chamado <Link para={'/chamados/' + e.chamado_aberto.id}>nº {e.chamado_aberto.numero}</Link> em andamento ({SITUACAO_CHAMADO[e.chamado_aberto.situacao]?.rotulo}).</div>}
           {e.baixa_pendente && <div className="aviso atencao">Solicitação de {e.baixa_pendente.tipo.toLowerCase()} aguardando aprovação: {e.baixa_pendente.motivo}</div>}
-          {e.custo?.sugerir_substituicao && <div className="aviso erro">Custo acumulado já atingiu {num(e.custo.pct_aquisicao, 0)}% do valor de compra: avaliar substituição.</div>}
+          {e.custo?.sugerir_substituicao && <div className="aviso erro" role="alert">Custo acumulado já atingiu {num(e.custo.pct_aquisicao, 0)}% do valor de compra: avaliar substituição.</div>}
 
           <div className="grade g4" style={{ marginBottom: 16 }}>
             <div className="card kpi"><div className="rotulo">Local atual</div><div className="valor" style={{ fontSize: 17 }}>{e.local_tipo === 'FORNECEDOR' ? e.local_fornecedor : e.local_loja}</div><div className="sub">{e.local_tipo === 'FORNECEDOR' ? 'no fornecedor' : e.ponto_instalacao || e.departamento}</div></div>
@@ -361,7 +361,7 @@ function Movimentar({ e, transicoes, ref_, onFechar, onOk }: { e: any; transicoe
   };
   return (
     <Modal titulo="Movimentar equipamento" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={!v.para || (t?.exige_destino && !v.destinatario) || acao.enviando} onClick={enviar}>Registrar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="campos">
         <Campo rotulo="Status atual"><input disabled value={STATUS[e.status].rotulo} /></Campo>
         <Campo rotulo="Novo status" obrigatorio>
@@ -410,7 +410,7 @@ function AbrirChamado({ e, onFechar, onOk }: { e: any; onFechar: () => void; onO
   if (resultado) return (
     <Modal titulo={`Chamado nº ${resultado.numero} aberto`} onFechar={onFechar} rodape={<><Link para={'/chamados/' + resultado.id} className="btn">Ver chamado</Link><button className="btn primario" onClick={onFechar}>Fechar</button></>}>
       {resultado.aviso_garantia && <div className="aviso ok">{resultado.aviso_garantia}</div>}
-      {resultado.reincidente && <div className="aviso erro">Reincidência: falha da mesma categoria neste equipamento dentro da janela configurada.</div>}
+      {resultado.reincidente && <div className="aviso erro" role="alert">Reincidência: falha da mesma categoria neste equipamento dentro da janela configurada.</div>}
       {resultado.modelo_em_alerta && <div className="aviso atencao">Este modelo está acima do limite de falhas nesta categoria (possível problema de lote/fabricante).</div>}
       <div className="muted small">Prioridade definida: <Pill mapa={PRIORIDADE} valor={resultado.prioridade} /></div>
       {resultado.historico_recente?.length > 0 && <><h3 style={{ marginTop: 14 }}>Chamados nos últimos 180 dias</h3>
@@ -419,7 +419,7 @@ function AbrirChamado({ e, onFechar, onOk }: { e: any; onFechar: () => void; onO
   );
   return (
     <Modal titulo="Abrir chamado" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={v.relato.length < 5 || faltaTransito || acao.enviando} onClick={enviar}>Abrir chamado</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       {e.em_garantia && <div className="aviso ok">Equipamento em garantia até {data(e.garantia_fim)}: acione o fabricante antes de orçar com fornecedor local.</div>}
       <div className="campos">
         <Campo rotulo="Equipamento"><input disabled value={`${e.descricao} (${e.numero_serie})`} /></Campo>
@@ -463,7 +463,7 @@ function SolicitarBaixa({ e, onFechar, onOk }: { e: any; onFechar: () => void; o
   };
   return (
     <Modal titulo={descarte ? 'Solicitar descarte' : 'Solicitar baixa'} onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn perigo" disabled={acao.enviando} onClick={enviar}>Enviar para aprovação</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="aviso atencao">A baixa exige aprovação de um gestor diferente de quem solicita. O histórico e o custo acumulado são preservados.</div>
       <Campo rotulo="Motivo e laudo" obrigatorio><textarea value={v.motivo} onChange={set('motivo')} /></Campo>
       {descarte && <div style={{ marginTop: 12 }}><Campo rotulo="Nº do certificado de destinação" obrigatorio><input value={v.certificado} onChange={set('certificado')} /></Campo></div>}
@@ -483,7 +483,7 @@ function EditarEquipamento({ e, onFechar, onOk }: { e: any; onFechar: () => void
   const texto = (c: string, r: string, tipo = 'text') => <Campo rotulo={r}><input type={tipo} value={v[c]} onChange={set(c)} /></Campo>;
   return (
     <Modal largo titulo="Editar equipamento" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="aviso info">Loja, status e localização mudam só por movimentação. Toda alteração fica no histórico com valor anterior e novo.</div>
       <div className="campos">
         {texto('descricao', 'Descrição')}{texto('cor', 'Cor')}

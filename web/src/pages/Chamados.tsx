@@ -20,13 +20,13 @@ export function Chamados() {
         <div className="acoes"><button className="btn" onClick={() => baixarCsv('/api/chamados?' + params, 'chamados').catch(e => avisar(e.message, 'erro'))}>Exportar CSV</button></div>
       </div>
       <div className="filtros">
-        <input type="search" placeholder="Nº, equipamento, série ou relato…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} />
-        <select value={f.situacao} onChange={e => setF({ ...f, situacao: e.target.value })}>
+        <input type="search" aria-label="Pesquisar chamados" placeholder="Nº, equipamento, série ou relato…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} />
+        <select aria-label="Situação" value={f.situacao} onChange={e => setF({ ...f, situacao: e.target.value })}>
           <option value="abertos">Em aberto</option><option value="todos">Todos</option>
           {Object.entries(SITUACAO_CHAMADO).map(([k, s]) => <option key={k} value={k}>{s.rotulo}</option>)}
         </select>
         <Opcoes itens={ref.lojas} valor={f.loja} onChange={v => setF({ ...f, loja: v })} vazio="Todas as lojas" rotulo={l => `${l.codigo} – ${l.nome_fantasia}`} />
-        <select value={f.prioridade} onChange={e => setF({ ...f, prioridade: e.target.value })}><option value="">Todas as prioridades</option>{Object.entries(PRIORIDADE).map(([k, p]) => <option key={k} value={k}>{p.rotulo}</option>)}</select>
+        <select aria-label="Prioridade" value={f.prioridade} onChange={e => setF({ ...f, prioridade: e.target.value })}><option value="">Todas as prioridades</option>{Object.entries(PRIORIDADE).map(([k, p]) => <option key={k} value={k}>{p.rotulo}</option>)}</select>
       </div>
       <div className="card">
         <Carregando {...r}>{() => <Tabela linhas={r.dados} onClick={l => navegar('/chamados/' + l.id)} vazio="Nenhum chamado" colunas={[
@@ -72,7 +72,7 @@ export function ChamadoDetalhe({ id }: { id: string }) {
             </div>
           </div>
           {c.em_garantia && <div className="aviso ok">Equipamento em garantia: acionar o fabricante antes de orçar com fornecedor local.</div>}
-          {c.reincidente && <div className="aviso erro">Chamado reincidente: falha da mesma categoria neste equipamento dentro da janela configurada.</div>}
+          {c.reincidente && <div className="aviso erro" role="alert">Chamado reincidente: falha da mesma categoria neste equipamento dentro da janela configurada.</div>}
 
           <div className="grade g3" style={{ marginBottom: 16 }}>
             <div className="card span2"><h2>Problema e diagnóstico</h2><dl className="dl">
@@ -134,7 +134,7 @@ function Diagnostico({ c, onFechar, onOk }: any) {
   };
   return (
     <Modal titulo="Diagnóstico técnico" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="campos">
         <Campo rotulo="Categoria confirmada"><Opcoes itens={ref.categorias} valor={v.categoria_falha_id} onChange={set('categoria_falha_id')} rotulo={x => x.nome} /></Campo>
         <Campo rotulo="Fornecedor responsável"><Opcoes itens={ref.fornecedores.filter((f: any) => f.homologado)} valor={v.fornecedor_id} onChange={set('fornecedor_id')} rotulo={f => f.razao_social} /></Campo>
@@ -161,7 +161,7 @@ function NovoOrcamento({ c, onFechar, onOk }: any) {
   };
   return (
     <Modal largo titulo="Registrar orçamento" onFechar={onFechar} rodape={<><strong style={{ marginRight: 'auto' }}>Total: {moeda(total)}</strong><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn primario" disabled={acao.enviando || !v.fornecedor_id} onClick={salvar}>Registrar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <div className="campos">
         <Campo rotulo="Fornecedor (homologado)" obrigatorio><Opcoes itens={ref.fornecedores.filter((f: any) => f.homologado && !f.tipos.includes('TRANSPORTADORA'))} valor={v.fornecedor_id} onChange={set('fornecedor_id')} rotulo={f => f.razao_social} /></Campo>
         <Campo rotulo="Validade"><input type="date" value={v.validade} onChange={set('validade')} /></Campo>
@@ -171,7 +171,7 @@ function NovoOrcamento({ c, onFechar, onOk }: any) {
       <div style={{ display: 'grid', gap: 6 }}>
         {itens.map((i, k) => (
           <div key={k} style={{ display: 'grid', gridTemplateColumns: '150px 1fr 80px 120px 32px', gap: 6 }}>
-            <select value={i.tipo} onChange={e => setItem(k, 'tipo', e.target.value)}>{Object.entries(TIPO_CUSTO).map(([t, r]) => <option key={t} value={t}>{r}</option>)}</select>
+            <select aria-label="Tipo do item" value={i.tipo} onChange={e => setItem(k, 'tipo', e.target.value)}>{Object.entries(TIPO_CUSTO).map(([t, r]) => <option key={t} value={t}>{r}</option>)}</select>
             <input placeholder="Descrição" value={i.descricao} onChange={e => setItem(k, 'descricao', e.target.value)} />
             <input type="number" min="0" step="0.5" title="Quantidade" value={i.quantidade} onChange={e => setItem(k, 'quantidade', e.target.value)} />
             <input type="number" min="0" step="0.01" placeholder="Valor unit." value={i.valor_unitario} onChange={e => setItem(k, 'valor_unitario', e.target.value)} />
@@ -192,7 +192,7 @@ function Encerrar({ c, onFechar, onOk }: any) {
   const salvar = async () => { if (await acao.executar(() => api('POST', `/api/chamados/${c.id}/encerrar`, v))) { avisar('Chamado encerrado'); onOk(); onFechar(); } };
   return (
     <Modal titulo="Encerrar chamado" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Cancelar</button><button className="btn sucesso" disabled={acao.enviando} onClick={salvar}>Encerrar</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       {c.status_equipamento !== 'ATIVO' && <div className="aviso atencao">O equipamento ainda está em “{STATUS[c.status_equipamento]?.rotulo}”. Registre o retorno com teste antes de encerrar.</div>}
       <div className="campos">
         <Campo rotulo="Categoria de falha confirmada" obrigatorio largo><Opcoes itens={ref.categorias} valor={v.categoria_falha_id} onChange={set('categoria_falha_id')} rotulo={x => x.nome} /></Campo>
@@ -211,7 +211,7 @@ function Cancelar({ c, onFechar, onOk }: any) {
   const salvar = async () => { if (await acao.executar(() => api('POST', `/api/chamados/${c.id}/cancelar`, v))) { avisar('Chamado cancelado e equipamento de volta a Ativo'); onOk(); onFechar(); } };
   return (
     <Modal titulo="Cancelar chamado" onFechar={onFechar} rodape={<><button className="btn" onClick={onFechar}>Voltar</button><button className="btn perigo" disabled={acao.enviando} onClick={salvar}>Cancelar chamado</button></>}>
-      {acao.erro && <div className="aviso erro">{acao.erro}</div>}
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
       <Campo rotulo="Motivo (resolvido sem custo, chamado indevido…)" obrigatorio><textarea value={v.motivo} onChange={set('motivo')} /></Campo>
       <label className="check" style={{ marginTop: 12 }}><input type="checkbox" checked={v.teste_ok} onChange={set('teste_ok')} /> Equipamento testado e funcionando</label>
     </Modal>
