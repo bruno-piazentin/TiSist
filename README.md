@@ -9,6 +9,7 @@ API em TypeScript (Node 22), PostgreSQL 16 com regras críticas no banco e PWA e
 | --- | --- |
 | Cadastros | Lojas, departamentos, grupos, marcas, fabricantes (vínculo marca × fabricante), modelos, fornecedores, serviços, categorias de falha, usuários, parâmetros |
 | Equipamentos | Campos obrigatórios, série única por modelo, código interno automático, garantia sugerida pelo modelo, leitura por leitor USB ou câmera, exportação CSV |
+| PDVs | Cadastro por loja com computador, impressora, scanner, teclado, gaveta e balança vinculados; situação Parado automática quando um periférico é movimentado; indicação de PDV sem comunicação (ping do servidor e, opcionalmente, Zabbix) |
 | Ciclo de vida | 9 status, matriz de transições no banco, status anterior/atual em cada movimentação, localização física separada da loja vinculada, transferência entre lojas |
 | Chamados | Abertura com garantia e reincidência, prioridade crítica automática (loja crítica sem reserva), diagnóstico, encerramento com categoria confirmada, cancelamento |
 | Orçamentos | Itens por tipo, versões, quadro comparativo, cotações mínimas, aprovação por alçada com segregação de funções, dados de “reparar ou trocar” |
@@ -28,6 +29,7 @@ server/          API (Node + TypeScript)
   auth.ts          token de sessão (JWT) e matriz de permissões por perfil
   validacao.ts     peças de validação reutilizáveis (uuid, opcional, dia, hora)
   evento.ts        registrarEvento(): grava na linha do tempo / auditoria
+  monitor-pdv.ts   teste periódico de comunicação dos PDVs (ping/TCP) e consulta ao Zabbix
   modules/         um arquivo por assunto: equipamentos, chamados, orcamentos, custos, agenda...
 web/             PWA (React): index.html, sw.js (offline), styles.css
   src/main.tsx     login, layout (menu, barra do topo) e rotas das telas
@@ -38,7 +40,7 @@ db/              banco PostgreSQL
   migrar.sh        aplica os scripts da lista que ainda não rodaram (controle em public.sisti_migracao)
   NN_*.sql         os scripts; 05_seed_demo.sql = dados fictícios; 90_teste_regras.sql = teste das regras
 scripts/         build.mjs (esbuild), db-init.sh (banco de desenvolvimento), test-banco.sh
-tests/           api.test.mjs (38 testes de ponta a ponta da API)
+tests/           api.test.mjs (testes de ponta a ponta da API)
 deploy/          produção: Caddy (HTTPS), backup, comando "sisti", criação do banco no Docker
 docs/            IMPLANTACAO.md (servidor), MELHORIAS-PENDENTES.md (dívida técnica)
 CHANGELOG.md     o que mudou em cada versão

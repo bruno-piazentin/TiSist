@@ -272,5 +272,52 @@ await caso('3 senhas erradas bloqueiam o login; admin desbloqueia', async () => 
   await chamar(A, 'PUT', `/api/usuarios/${r.dados.id}`, { nome: 'Bloqueio Teste', email: login + '@x.com', login, perfil_id: perfil.id, lojas: [], ativo: false });
 });
 
+console.log('PDVs');
+await caso('PDV: cadastro, periféricos vinculados, situação Parado automática e teste de comunicação', async () => {
+  const disp = await chamar(T, 'GET', `/api/pdvs/equipamentos?loja=${L01.id}`);
+  assert.equal(disp.status, 200, JSON.stringify(disp.dados));
+  const ativos = disp.dados.filter(e => e.status === 'ATIVO');
+  assert.ok(ativos.length >= 3, 'L01 precisa de 3 equipamentos ativos livres');
+  const [imp, scan, outro] = ativos;
+  // PDV 999 da L01 é reservado ao teste: criado na primeira execução e reaproveitado nas seguintes (não há exclusão)
+  const numero = 999;
+  const base = { loja_id: L01.id, numero, ip: '127.0.0.250', ativo: true, impressora_id: imp.id, scanner_id: scan.id };
+  assert.equal((await chamar(GR, 'POST', '/api/pdvs', base)).status, 403, 'gerente de loja não cadastra PDV');
+  const existente = (await chamar(T, 'GET', `/api/pdvs?loja=${L01.id}`)).dados.find(p => p.numero === numero);
+  const r = existente ? await chamar(T, 'PUT', `/api/pdvs/${existente.id}`, base) : await chamar(T, 'POST', '/api/pdvs', base);
+  assert.equal(r.status, 200, JSON.stringify(r.dados));
+  const id = r.dados.id;
+  try {
+    assert.equal((await chamar(T, 'POST', '/api/pdvs', { ...base, impressora_id: null, scanner_id: null, ip: null })).status, 409, 'número repetido na loja');
+    const dup = await chamar(T, 'POST', '/api/pdvs', { loja_id: L01.id, numero: 998, teclado_id: imp.id });
+    assert.equal(dup.status, 422, 'mesmo equipamento em dois PDVs'); assert.match(dup.dados.erro, /já está vinculado ao PDV/);
+    assert.ok(!(await chamar(T, 'GET', `/api/pdvs/equipamentos?loja=${L01.id}`)).dados.some(e => e.id === imp.id), 'vinculado some da lista de disponíveis');
+
+    const buscar = async () => (await chamar(T, 'GET', `/api/pdvs?loja=${L01.id}`)).dados.find(p => p.id === id);
+    let p = await buscar();
+    assert.equal(p.situacao, 'ATIVO'); assert.equal(p.perifericos.impressora_id.id, imp.id);
+
+    // periférico movimentado: PDV fica Parado; retorno: volta a Ativo
+    const mov = async status_novo => { const m = await chamar(T, 'POST', `/api/equipamentos/${scan.id}/movimentar`, { id: randomUUID(), status_novo, motivo: 'teste PDV', teste_ok: status_novo === 'ATIVO' ? true : undefined, confirmou_receb: status_novo === 'ATIVO' }); assert.equal(m.status, 200, JSON.stringify(m.dados)); };
+    await mov('EM_RESERVA');
+    assert.equal((await buscar()).situacao, 'PARADO');
+    await mov('ATIVO');
+    assert.equal((await buscar()).situacao, 'ATIVO');
+
+    const v = await chamar(T, 'POST', `/api/pdvs/${id}/verificar`);
+    assert.equal(v.status, 200, JSON.stringify(v.dados)); assert.equal(v.dados.online, true, '127.0.0.1 responde');
+    assert.ok(v.dados.ultima_resposta);
+
+    const ger = await chamar(GR, 'GET', '/api/pdvs');
+    assert.equal(ger.status, 200); assert.ok(ger.dados.every(x => x.loja_id === L01.id || ger.dados.length === 0), 'gerente vê só a loja dele');
+    void outro;
+  } finally {
+    // libera os equipamentos e inativa o PDV de teste (a aplicação não apaga registros)
+    await chamar(T, 'PUT', `/api/pdvs/${id}`, { loja_id: L01.id, numero, ip: null, ativo: false });
+  }
+  const fim = (await chamar(T, 'GET', `/api/pdvs?loja=${L01.id}`)).dados.find(p => p.id === id);
+  assert.equal(fim.situacao, 'INATIVO');
+});
+
 console.log(`\n${ok} ok, ${falhas} falha(s)`);
 process.exit(falhas ? 1 : 0);

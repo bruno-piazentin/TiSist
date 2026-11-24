@@ -323,3 +323,104 @@ a, button, [role=button], input, select, textarea, label, tr.clicavel { touch-ac
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---------------- PDVs ---------------- */
+.txt-ambar { color: #8a5c0c; font-weight: 600; }
+.txt-vermelho { color: var(--vermelho); font-weight: 600; }
+.pdv-resumo { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.pdv-resumo-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 16px; min-height: 44px; border-radius: var(--raio);
+  border: 1px solid var(--borda); background: var(--superficie); box-shadow: var(--sombra); font: inherit; color: inherit; cursor: pointer; text-align: left;
+  border-top: 3px solid var(--borda-forte); transition: box-shadow .15s, border-color .15s, background .15s; }
+.pdv-resumo-item:hover { box-shadow: var(--sombra-alta); }
+.pdv-resumo-item:focus-visible { outline: none; box-shadow: var(--anel); }
+.pdv-resumo-item .valor { font-size: 24px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.pdv-resumo-item .rotulo { font-size: 12px; color: var(--texto-2); font-weight: 600; }
+.pdv-resumo-item.c-neutro { border-top-color: var(--marca-2); }
+.pdv-resumo-item.c-verde { border-top-color: var(--verde); }
+.pdv-resumo-item.c-ambar { border-top-color: var(--ambar); }
+.pdv-resumo-item.c-vermelho { border-top-color: var(--vermelho); }
+.pdv-resumo-item.c-vermelho .valor { color: var(--vermelho); }
+.pdv-resumo-item.c-cinza { border-top-color: var(--texto-3); }
+.pdv-resumo-item.ativo { background: var(--marca-claro); border-color: var(--marca-3); }
+
+.pdv-loja { margin-bottom: 22px; }
+.pdv-loja > header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.pdv-loja > header h2 { margin: 0; font-size: 16px; }
+.pdv-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+
+.pdv-cartao { position: relative; display: flex; flex-direction: column; gap: 9px; padding: 14px 14px 12px 17px; text-align: left; font: inherit; color: inherit;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); cursor: pointer; overflow: hidden;
+  transition: box-shadow .15s, transform .15s, border-color .15s; }
+.pdv-cartao::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--verde); }
+.pdv-cartao:hover { box-shadow: var(--sombra-alta); transform: translateY(-1px); }
+.pdv-cartao:focus-visible { outline: none; box-shadow: var(--anel), var(--sombra-alta); }
+.pdv-cartao.e-parado::before { background: var(--ambar); }
+.pdv-cartao.e-falha { border-color: #f3c1a8; background: linear-gradient(180deg, #fff7f3 0%, #fff 55%); }
+.pdv-cartao.e-falha::before { background: var(--vermelho); }
+.pdv-cartao.e-inativo { opacity: .72; }
+.pdv-cartao.e-inativo::before { background: var(--borda-forte); }
+.pdv-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.pdv-num { font-size: 30px; font-weight: 750; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.pdv-num small { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .12em; color: var(--texto-3); margin-bottom: 3px; }
+.pdv-com { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.pdv-com.c-ok { color: var(--verde); }
+.pdv-com.c-falha { color: var(--vermelho); }
+.pdv-com.c-pendente, .pdv-com.c-nao { color: var(--texto-3); }
+.pdv-luz { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.pdv-com.c-ok .pdv-luz { box-shadow: 0 0 0 3px rgba(21,128,61,.15); }
+.pdv-com.c-falha .pdv-luz { animation: pdv-pulso 1.4s ease-out infinite; }
+@keyframes pdv-pulso { 0% { box-shadow: 0 0 0 0 rgba(194,65,12,.55); } 100% { box-shadow: 0 0 0 9px rgba(194,65,12,0); } }
+.pdv-ip { color: var(--texto-2); }
+.pdv-perif { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-top: 2px; }
+.pdv-slot { display: inline-grid; place-items: center; height: 32px; border-radius: 8px; border: 1px solid transparent; }
+.pdv-slot.s-ok, .s-ok > .pdv-slot { background: var(--verde-claro); color: #166534; }
+.pdv-slot.s-fora, .s-fora > .pdv-slot { background: var(--ambar-claro); color: #8a5c0c; border-color: #f0d495; }
+.pdv-slot.s-vazio, .s-vazio > .pdv-slot { background: transparent; color: var(--borda-forte); border: 1px dashed var(--borda-forte); }
+.pdv-zbx { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: #8a5c0c; background: var(--ambar-claro); border-radius: 7px; padding: 4px 8px; }
+.vazio-grande { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 20px; color: var(--texto-3); text-align: center; }
+.vazio-grande p { margin: 0; color: var(--texto-2); }
+
+/* detalhe do PDV */
+.pdv-det { display: grid; gap: 12px; }
+.pdv-det-com { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: var(--raio); background: var(--fundo); flex-wrap: wrap; }
+.pdv-det-com > div:nth-child(2) { flex: 1; min-width: 180px; }
+.pdv-det-com-ic { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: #fff; color: var(--texto-3); }
+.pdv-det-com.c-ok { background: var(--verde-claro); }
+.pdv-det-com.c-ok .pdv-det-com-ic { color: var(--verde); }
+.pdv-det-com.c-falha { background: var(--vermelho-claro); }
+.pdv-det-com.c-falha .pdv-det-com-ic { color: var(--vermelho); }
+.pdv-det-com-tit { font-size: 16px; font-weight: 700; }
+.pdv-det-dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0; }
+.pdv-det-dados dt { font-size: 11.5px; color: var(--texto-3); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.pdv-det-dados dd { margin: 3px 0 0; }
+.pdv-lista-perif, .pdv-alertas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pdv-lista-perif li { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border: 1px solid var(--borda); border-radius: var(--raio-p); }
+.pdv-lista-perif li .pdv-slot { width: 38px; height: 38px; flex: none; }
+.pdv-lista-perif li.s-fora { border-color: #f0d495; background: #fffcf3; }
+.pdv-lista-txt { flex: 1; min-width: 0; }
+.pdv-alertas li { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--raio-p); background: var(--ambar-claro); color: #6b4a0b; flex-wrap: wrap; }
+.pdv-alertas li > span:nth-child(2) { flex: 1; font-weight: 600; }
+.pdv-alertas li.nivel-4, .pdv-alertas li.nivel-5 { background: var(--vermelho-claro); color: var(--vermelho); }
+
+/* controle segmentado (Ativo / Inativo) */
+.segmentado { display: inline-flex; border: 1px solid var(--borda-forte); border-radius: var(--raio-p); overflow: hidden; }
+.segmentado label { position: relative; display: inline-flex; align-items: center; padding: 8px 16px; min-height: 40px; cursor: pointer; font-weight: 600; color: var(--texto-2); }
+.segmentado label + label { border-left: 1px solid var(--borda-forte); }
+.segmentado label.ativo { background: var(--marca); color: #fff; }
+.segmentado label:focus-within { box-shadow: inset 0 0 0 3px rgba(19,112,107,.35); }
+.segmentado input { position: absolute; opacity: 0; pointer-events: none; }
+
+@media (max-width: 900px) {
+  .pdv-resumo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pdv-grade { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .segmentado label { min-height: 44px; }
+}
+@media (max-width: 480px) {
+  .pdv-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pdv-resumo-item:first-child { grid-column: 1 / -1; }
+  .pdv-grade { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pdv-cartao { padding: 12px 10px 10px 14px; }
+  .pdv-num { font-size: 26px; }
+  .pdv-perif { grid-template-columns: repeat(3, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .pdv-com.c-falha .pdv-luz { animation: none; } .pdv-cartao:hover { transform: none; } }

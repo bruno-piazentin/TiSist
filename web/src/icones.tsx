@@ -27,6 +27,19 @@ export const Ic = {
   nuvem: (p: P) => <Svg {...p}><path d="M7 18a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 9.5a4 4 0 0 1-.5 8.5z" /></Svg>,
   olho: (p: P) => <Svg {...p}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></Svg>,
   olhoFechado: (p: P) => <Svg {...p}><path d="M3 3l18 18" /><path d="M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></Svg>,
+  // PDV e periféricos
+  pdv: (p: P) => <Svg {...p}><rect x="4" y="3" width="16" height="10" rx="1.5" /><path d="M12 13v3M6 21h12l-1.5-5h-9z" /><path d="M7.5 7h5M7.5 9.5h3" /></Svg>,
+  computador: (p: P) => <Svg {...p}><rect x="3" y="4" width="13" height="10" rx="1.5" /><path d="M7 18h5M9.5 14v4" /><rect x="18" y="4" width="3.5" height="14" rx="1" /><path d="M19.75 7h.01" /></Svg>,
+  impressora: (p: P) => <Svg {...p}><path d="M7 9V3h10v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M7 14h10v7H7z" /><path d="M17.5 12h.01" /></Svg>,
+  scanner: (p: P) => <Svg {...p}><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 8v8M10 8v8M13 8v8M16 8v8" /></Svg>,
+  teclado: (p: P) => <Svg {...p}><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M6 14h.01M18 14h.01M9 14h6" /></Svg>,
+  gaveta: (p: P) => <Svg {...p}><rect x="3" y="5" width="18" height="6" rx="1.5" /><path d="M4 11v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="M10 15h4" /></Svg>,
+  balanca: (p: P) => <Svg {...p}><path d="M3 15h18l-1.5 5h-15z" /><path d="M12 15V9" /><rect x="7" y="4" width="10" height="5" rx="1" /><path d="M10 6.5h4" /></Svg>,
+  sinal: (p: P) => <Svg {...p}><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0" /><path d="M12 19h.01" /></Svg>,
+  semSinal: (p: P) => <Svg {...p}><path d="M3 3l18 18" /><path d="M8.5 15.5a5 5 0 0 1 6-.7M5 12a10 10 0 0 1 4.3-2.5M2 8.5a15 15 0 0 1 4.2-2.8M13.5 7.1A15 15 0 0 1 22 8.5M17 10.7a10 10 0 0 1 2 1.3" /><path d="M12 19h.01" /></Svg>,
+  alerta: (p: P) => <Svg {...p}><path d="M10.3 3.9 2.4 17.5A2 2 0 0 0 4.1 20.5h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9.5v4M12 17h.01" /></Svg>,
+  atualizar: (p: P) => <Svg {...p}><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" /><path d="M4 4v4h4" /><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" /><path d="M20 20v-4h-4" /></Svg>,
+  mais: (p: P) => <Svg {...p}><path d="M12 5v14M5 12h14" /></Svg>,
   semNuvem: (p: P) => <Svg {...p}><path d="M3 3l18 18" /><path d="M8.5 6.4A6 6 0 0 1 18 9.5a4 4 0 0 1 2.2 7.4M17 18H7a4.5 4.5 0 0 1-1.4-8.8" /></Svg>,
 };
 export type Icone = (p: P) => ReactElement;

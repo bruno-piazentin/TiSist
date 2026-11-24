@@ -9,6 +9,8 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# ping do iputils: funciona sem root (socket ICMP sem privilégio) para o monitor de PDVs
+RUN apk add --no-cache iputils-ping
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist

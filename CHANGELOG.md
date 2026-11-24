@@ -8,6 +8,21 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.3.0 (24/11/2026)
+
+- **Novo menu PDVs:** cadastro de PDV por loja com número, IP, status (Ativo/Inativo) e os equipamentos do checkout
+  (computador, impressora, scanner, teclado, gaveta e balança), escolhidos entre os equipamentos da loja.
+  Um equipamento só pode estar em um PDV.
+- **Parado automático:** se um equipamento vinculado é movimentado (manutenção, trânsito, aguardando orçamento,
+  reserva...), o PDV aparece como **Parado**, com o motivo; volta a Ativo quando o equipamento retorna.
+- **Sem comunicação:** o servidor testa o IP de cada PDV a cada minuto (ping, ou porta TCP configurável) e a tela
+  destaca em vermelho o PDV que não responde, com o tempo sem resposta. Botão "Testar agora" no detalhe.
+- **Zabbix (opcional):** com `ZABBIX_URL` e `ZABBIX_TOKEN`, mostra a disponibilidade do host e os alertas ativos
+  de cada PDV (procurado pelo IP). Veja "Monitor de comunicação dos PDVs" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
+- Painel de PDVs: resumo clicável (operando, parados, sem comunicação, inativos), cartões agrupados por loja com os
+  periféricos em ícones coloridos, busca por número, IP, modelo ou série; atualiza sozinho a cada 30 segundos.
+- Banco: script `db/13_pdv.sql` (aplicado automaticamente pelo `sisti atualizar`).
+
 ## 1.2.0 (24/11/2026)
 
 - **Bloqueio do login por senhas erradas:** depois de 3 senhas erradas seguidas, o usuário fica bloqueado por

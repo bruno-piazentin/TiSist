@@ -236,6 +236,31 @@ Para alterar dados direto no banco (excepcional), use `sisti_owner` com a senha 
 
 Se a porta 5432 do servidor já estiver em uso por outro programa, defina outra em `.env.producao` (ex.: `DB_PORTA_LOCAL=5433`), rode `sisti iniciar` e use essa porta no pgAdmin.
 
+### Monitor de comunicação dos PDVs (e Zabbix)
+
+A tela **PDVs** mostra quando um PDV está **sem comunicação**. O próprio servidor do SisTI testa o IP de cada PDV ativo
+a cada minuto (ping). Para isso, o servidor (10.10.4.14) precisa alcançar a rede das lojas: confira com
+`ping IP-DE-UM-PDV` no servidor.
+
+Ajustes em `/opt/sisti/.env.producao` (depois de alterar, rode `sisti iniciar`):
+
+| Variável | Para quê |
+| --- | --- |
+| `PDV_MONITOR_SEGUNDOS` | Intervalo do teste (padrão 60). `0` desliga o monitor |
+| `PDV_PORTA_TCP` | Se os PDVs bloqueiam ping (firewall do Windows), informe uma porta que eles sempre atendem, ex.: `3389` ou `10050` (agente Zabbix). O teste passa a ser por conexão TCP |
+| `ZABBIX_URL` | Endereço do Zabbix, ex.: `http://10.10.4.20/zabbix` |
+| `ZABBIX_TOKEN` | Token de API (Zabbix 5.4 ou mais novo) |
+
+**Zabbix (opcional):** com `ZABBIX_URL` e `ZABBIX_TOKEN`, o SisTI procura cada PDV no Zabbix **pelo IP** da interface
+do host e mostra, no PDV, se o host está indisponível e quais alertas estão ativos. Para criar o token:
+
+1. No Zabbix, crie um grupo de usuários com permissão **somente leitura** nos grupos de hosts das lojas.
+2. Crie o usuário `sisti` nesse grupo (perfil *User*).
+3. Em *Usuários → Tokens de API*, crie um token para o usuário `sisti` e copie o valor para `ZABBIX_TOKEN`.
+
+O token fica só no `.env.producao` do servidor (não vai para o Git). Se o Zabbix não responder ou o token estiver
+errado, o motivo aparece em `sisti logs app` (linha "[monitor PDV]"); o teste por ping continua funcionando.
+
 ## 9. Problemas comuns
 
 | Sintoma | Verificar |

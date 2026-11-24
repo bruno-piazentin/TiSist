@@ -8,6 +8,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Equipamentos, EquipamentoDetalhe, EquipamentoNovo } from './pages/Equipamentos';
 import { Chamados, ChamadoDetalhe } from './pages/Chamados';
 import { Aprovacoes } from './pages/Aprovacoes';
+import { Pdvs } from './pages/Pdvs';
 import { Custos } from './pages/Custos';
 import { Cadastros, Usuarios, Parametros } from './pages/Cadastros';
 import { Fila } from './pages/Fila';
@@ -58,6 +59,7 @@ function rota(caminho: string) {
       if (partes[1] === 'novo') return <EquipamentoNovo />;
       return partes[1] ? <EquipamentoDetalhe id={partes[1]} key={partes[1]} /> : <Equipamentos />;
     case 'chamados': return partes[1] ? <ChamadoDetalhe id={partes[1]} key={partes[1]} /> : <Chamados />;
+    case 'pdvs': return <Pdvs />;
     case 'aprovacoes': return <Aprovacoes />;
     case 'custos': return <Custos />;
     case 'cadastros': return <Cadastros entidade={partes[1] || 'lojas'} key={partes[1]} />;
@@ -103,6 +105,7 @@ function MenuUsuario({ usuario, online, filaQtd, onSair }: { usuario: Usuario; o
           </div>
           <div className="usuario-links so-movel">
             {(pode('orcamento.aprovar') || pode('baixa.aprovar')) && <button role="menuitem" onClick={() => ir('/aprovacoes')}><Ic.aprovacoes tamanho={18} />Aprovações</button>}
+            <button role="menuitem" onClick={() => ir('/pdvs')}><Ic.pdv tamanho={18} />PDVs</button>
             <button role="menuitem" onClick={() => ir('/custos')}><Ic.custos tamanho={18} />Custos</button>
             <button role="menuitem" onClick={() => ir('/fila')}><Ic.fila tamanho={18} />Fila offline</button>
             <button role="menuitem" onClick={() => ir('/cadastros/lojas')}><Ic.cadastros tamanho={18} />Cadastros base</button>
@@ -207,6 +210,7 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
             <div className="nav-sec"><span>Operação</span></div>
             {item('/', 'Painel', Ic.painel)}
             {item('/equipamentos', 'Equipamentos', Ic.equipamentos)}
+            {item('/pdvs', 'PDVs', Ic.pdv)}
             {item('/chamados', 'Chamados', Ic.chamados)}
             {item('/aprovacoes', 'Aprovações', Ic.aprovacoes, aprovacoes)}
             {item('/custos', 'Custos', Ic.custos)}

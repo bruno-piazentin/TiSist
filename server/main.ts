@@ -13,6 +13,8 @@ import { rotasCustos } from './modules/custos';
 import { rotasDashboard } from './modules/dashboard';
 import { rotasSync } from './modules/sync';
 import { rotasAgenda } from './modules/agenda';
+import { rotasPdv } from './modules/pdv';
+import { iniciarMonitorPdv } from './monitor-pdv';
 
 const router = new Router();
 router.add('GET', '/api/saude', async () => {
@@ -28,6 +30,7 @@ rotasCustos(router);
 rotasDashboard(router);
 rotasSync(router);
 rotasAgenda(router);
+rotasPdv(router);
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://localhost');
@@ -62,7 +65,10 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(config.porta, () => console.log(`SisTI rodando em http://localhost:${config.porta}`));
+server.listen(config.porta, () => {
+  console.log(`SisTI rodando em http://localhost:${config.porta}`);
+  iniciarMonitorPdv();
+});
 
 // Encerramento limpo (systemd/Docker)
 for (const sinal of ['SIGINT', 'SIGTERM'] as const) {

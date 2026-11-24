@@ -12,3 +12,4 @@
 10_visoes_restricao_loja.sql
 11_usuario_leitura.sql
 12_bloqueio_login.sql
+13_pdv.sql
