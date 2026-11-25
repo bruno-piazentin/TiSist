@@ -1,7 +1,7 @@
 // Service worker do SisTI: guarda a casca do app para abrir sem internet.
 // Dados da API não passam por aqui: o app usa IndexedDB e a fila offline.
 const VERSAO = 'sisti-__VERSAO__';
-const CASCA = ['/', '/index.html', '/app.js', '/styles.css', '/icon.svg', '/manifest.webmanifest'];
+const CASCA = ['/', '/index.html', '/app.js', '/styles.css', '/icon.svg', '/icon-192.png', '/sisti.ico', '/manifest.webmanifest'];
 
 self.addEventListener('install', e => {
   // cache: 'reload' ignora o cache HTTP do navegador, para a casca guardada ser sempre a versão nova

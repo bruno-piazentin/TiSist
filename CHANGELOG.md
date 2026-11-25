@@ -8,6 +8,14 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.5.1 (25/11/2026)
+
+- **Ícone do SisTI para atalho no Windows** (`sisti.ico`, com versão própria para tamanhos pequenos) e script
+  `deploy/windows/criar-atalho.ps1`, que cria o atalho "SisTI" na área de trabalho abrindo o sistema em janela própria.
+- **Aviso de SisTI já aberto:** ao abrir o sistema com outra janela ou aba dele já aberta no mesmo navegador, aparece
+  o aviso "O SisTI já está aberto", com as opções Fechar esta janela ou Continuar nesta janela.
+- Ícones PNG (192 e 512 px) no manifesto: o "Instalar SisTI" do Edge/Chrome passa a usar o ícone correto no Windows.
+
 ## 1.5.0 (24/11/2026)
 
 - **Excluir nos cadastros base** (unidades, departamentos, grupos, marcas, fabricantes, modelos, fornecedores, serviços

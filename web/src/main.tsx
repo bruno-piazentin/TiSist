@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, getComCache, sessao, sincronizar } from './api';
 import { aoMudarFila, cache, fila } from './offline';
-import { App, Link, PERFIL, irPara, useRota, type AppCtx, type Usuario } from './ui';
+import { App, Link, Modal, PERFIL, irPara, useRota, type AppCtx, type Usuario } from './ui';
 import { Dashboard } from './pages/Dashboard';
 import { Equipamentos, EquipamentoDetalhe, EquipamentoNovo } from './pages/Equipamentos';
 import { Chamados, ChamadoDetalhe } from './pages/Chamados';
@@ -265,7 +265,46 @@ function Shell({ usuario, onSair }: { usuario: Usuario; onSair: () => void }) {
   );
 }
 
+/**
+ * Avisa quando o SisTI já está aberto em outra janela ou aba do mesmo navegador.
+ * A janela nova pergunta pelo canal "sisti-janela"; as que já estão abertas respondem.
+ */
+function useOutraJanelaAberta() {
+  const [outra, setOutra] = useState(false);
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const canal = new BroadcastChannel('sisti-janela');
+    canal.onmessage = e => {
+      if (e.data === 'ola') canal.postMessage('aqui');
+      else if (e.data === 'aqui') setOutra(true);
+    };
+    canal.postMessage('ola');
+    return () => canal.close();
+  }, []);
+  return [outra, () => setOutra(false)] as const;
+}
+
+function AvisoJanelaAberta({ onContinuar }: { onContinuar: () => void }) {
+  const [naoFechou, setNaoFechou] = useState(false);
+  const fechar = () => {
+    window.close();
+    // O navegador só deixa o sistema fechar janelas abertas pelo atalho ou por link; nas demais, orienta o usuário.
+    setTimeout(() => setNaoFechou(true), 300);
+  };
+  return (
+    <Modal titulo="O SisTI já está aberto" onFechar={onContinuar} rodape={<>
+      <button className="btn" onClick={onContinuar}>Continuar nesta janela</button>
+      <button className="btn primario" onClick={fechar}>Fechar esta janela</button></>}>
+      <p style={{ marginTop: 0 }}>O SisTI já está aberto em outra janela ou aba deste computador. Use a janela que já está aberta
+        (procure o ícone do SisTI na barra de tarefas).</p>
+      <p className="muted small">Com duas janelas abertas, uma pode mostrar dados desatualizados em relação à outra.</p>
+      {naoFechou && <div className="aviso atencao" role="alert">O navegador não permitiu fechar automaticamente. Feche esta janela ou aba pelo botão ×.</div>}
+    </Modal>
+  );
+}
+
 function Raiz() {
+  const [outraJanela, ignorarOutraJanela] = useOutraJanelaAberta();
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [pronto, setPronto] = useState(false);
   useEffect(() => {
@@ -287,7 +326,10 @@ function Raiz() {
     sessao.definir(null); await cache.limpar(); await fila.limpar(); setUsuario(null); irPara('/');
   };
   if (!pronto) return null;
-  return usuario ? <Shell usuario={usuario} onSair={sair} /> : <Login onEntrar={setUsuario} />;
+  return <>
+    {usuario ? <Shell usuario={usuario} onSair={sair} /> : <Login onEntrar={setUsuario} />}
+    {outraJanela && <AvisoJanelaAberta onContinuar={ignorarOutraJanela} />}
+  </>;
 }
 
 createRoot(document.getElementById('root')!).render(<Raiz />);

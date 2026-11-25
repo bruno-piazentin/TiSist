@@ -22,7 +22,7 @@ const web = {
 };
 
 mkdirSync('dist/web', { recursive: true });
-for (const f of ['index.html', 'manifest.webmanifest', 'icon.svg', 'styles.css']) cpSync(`web/${f}`, `dist/web/${f}`);
+for (const f of ['index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'sisti.ico', 'styles.css']) cpSync(`web/${f}`, `dist/web/${f}`);
 
 // Service worker com versão = hash dos arquivos (força atualização do cache a cada build)
 function gerarSw() {

@@ -129,6 +129,24 @@ Use esta opção se a empresa já tem uma CA interna (AD CS) ou um certificado c
 2. No `.env.producao`, defina `SISTI_TLS=/certs/sisti.crt /certs/sisti.key`.
 3. Rode `up -d` de novo.
 
+### Atalho na área de trabalho (Windows)
+
+O atalho abre o SisTI em janela própria, sem barra de endereço, com o ícone do sistema. O script e o ícone estão em
+`deploy/windows/` (`criar-atalho.ps1` e `sisti.ico`). Copie os dois juntos para uma pasta compartilhada.
+
+- **Um computador** (não precisa de administrador):
+  ```powershell
+  powershell -ExecutionPolicy Bypass -File \\servidor\ti\sisti\criar-atalho.ps1 -Url https://sisti.empresa.local
+  ```
+- **Para todos os usuários do computador:** rode como administrador e acrescente `-TodosUsuarios`.
+- **Em vários computadores:** use o mesmo comando num script de logon da GPO (Configuração do Usuário → Políticas →
+  Configurações do Windows → Scripts → Logon).
+
+Por padrão o atalho usa o Edge. Use `-Navegador Chrome` para o Chrome ou `-Navegador Padrao` para o navegador padrão.
+Se o `sisti.ico` não estiver junto do script, ele é baixado do próprio servidor (`https://sisti.empresa.local/sisti.ico`).
+
+Outra opção, sem script: no Edge ou no Chrome, abra o SisTI e use **Instalar SisTI** (ícone na barra de endereço).
+
 ## 6. Primeiro acesso e carga dos dados
 
 Entre em `https://sisti.empresa.local` como administrador e cadastre, nesta ordem:
