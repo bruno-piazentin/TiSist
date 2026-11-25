@@ -445,3 +445,12 @@ a, button, [role=button], input, select, textarea, label, tr.clicavel { touch-ac
   .param-botoes { width: 100%; }
   .param-botoes .btn { flex: 1; }
 }
+
+/* ---------------- Cadastros: excluir = inativar ---------------- */
+.cad-excluido { color: var(--texto-2); }
+.cad-excluido .pill { margin-left: 6px; }
+.cad-uso { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.cad-uso li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--borda); border-radius: var(--raio-p); }
+.cad-uso li.bloqueia { border-color: #f1c4ad; background: var(--vermelho-claro); }
+.cad-uso li .pill { margin-left: auto; }
+.btn.primario.perigo-forte { background: var(--vermelho); border-color: var(--vermelho); }

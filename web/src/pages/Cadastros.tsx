@@ -1,7 +1,7 @@
 // Cadastros base (genérico), usuários e parâmetros.
 import { Fragment, useMemo, useState, type ReactNode } from 'react';
 import { api } from '../api';
-import { Campo, Carregando, Link, Modal, Opcoes, PERFIL, Tabela, cnpjFmt, dataHora, irPara, moeda, num, useAcao, useApp, useCarregar } from '../ui';
+import { Campo, Carregando, Link, Modal, Opcoes, PERFIL, Tabela, cnpjFmt, dataHora, emUso, irPara, moeda, num, useAcao, useApp, useCarregar } from '../ui';
 import { csvLocal, relatorioFicha, relatorioLista, type SecaoRel } from '../relatorio';
 
 /** Minúsculas e sem acentos, para pesquisa ("Santarém" = "santarem"). */
@@ -34,7 +34,7 @@ const ENT: Record<string, { titulo: string; perm: string; campos: Def[] }> = {
     { c: 'telefone', r: 'Telefone', input: 'tel', json: 'endereco', tabela: true },
   ] },
   departamentos: { titulo: 'Departamentos', perm: 'cadastro.gerir', campos: [
-    { c: 'codigo', r: 'Código', obr: true, tabela: true }, { c: 'nome', r: 'Nome', obr: true, tabela: true }, { c: 'centro_custo', r: 'Centro de custo', obr: true, tabela: true }, { c: 'ativo', r: 'Ativo', tipo: 'bool', tabela: true },
+    { c: 'codigo', r: 'Código', obr: true, tabela: true }, { c: 'nome', r: 'Nome', obr: true, tabela: true }, { c: 'centro_custo', r: 'Centro de custo', obr: true, tabela: true },
   ] },
   grupos: { titulo: 'Grupos de produtos', perm: 'cadastro.gerir', campos: [
     { c: 'codigo', r: 'Código', obr: true, tabela: true }, { c: 'nome', r: 'Nome', obr: true, tabela: true }, { c: 'grupo_pai_id', r: 'Grupo pai', tipo: 'ref', ref: 'grupos', rotuloRef: x => x.nome },
@@ -50,7 +50,7 @@ const ENT: Record<string, { titulo: string; perm: string; campos: Def[] }> = {
     { c: 'fabricante_id', r: 'Fabricante', tipo: 'ref', ref: 'fabricantes', rotuloRef: x => x.razao_social, obr: true },
     { c: 'grupo_id', r: 'Grupo', tipo: 'ref', ref: 'grupos', rotuloRef: x => x.nome, obr: true, tabela: true },
     { c: 'sku_fabricante', r: 'SKU / ref. fabricante' }, { c: 'cor_padrao', r: 'Cor padrão' }, { c: 'garantia_meses', r: 'Garantia (meses)', tipo: 'numero', tabela: true },
-    { c: 'vida_util_meses', r: 'Vida útil (meses)', tipo: 'numero' }, { c: 'ativo_catalogo', r: 'Ativo no catálogo', tipo: 'bool', tabela: true },
+    { c: 'vida_util_meses', r: 'Vida útil (meses)', tipo: 'numero' },
   ] },
   fornecedores: { titulo: 'Fornecedores', perm: 'fornecedor.gerir', campos: [
     { c: 'razao_social', r: 'Razão social', obr: true, tabela: true, secao: 'Identificação' }, { c: 'nome_fantasia', r: 'Nome fantasia', tabela: true },
@@ -106,15 +106,18 @@ export function Cadastros({ entidade }: { entidade: string }) {
   const exibir = (d: Def, l: any) => exibirValor(d, l, ref);
   // Pesquisa em todos os campos do registro (com nomes de marcas/vínculos resolvidos), sem diferenciar acentos e maiúsculas
   const [busca, setBusca] = useState('');
+  const [verExcluidos, setVerExcluidos] = useState(false);
+  const qtdExcluidos = (r.dados || []).filter((l: any) => !emUso(l)).length;
   const linhas = useMemo(() => {
     const termos = normalizar(busca).split(/\s+/).filter(Boolean);
-    if (!termos.length || !r.dados) return r.dados;
-    return r.dados.filter((l: any) => {
+    const base = (r.dados || []).filter((l: any) => verExcluidos || emUso(l));
+    if (!termos.length || !r.dados) return r.dados && base;
+    return base.filter((l: any) => {
       const reg = comVinculos(entidade, l, ref);
       const texto = normalizar(def.campos.filter(d => d.tipo !== 'bool').map(d => String(exibir(d, reg))).join(' '));
       return termos.every(t => texto.includes(t));
     });
-  }, [busca, r.dados, def, ref, entidade]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [busca, r.dados, def, ref, entidade, verExcluidos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Relatórios da lista: respeitam a pesquisa aplicada
   const subtitulo = (busca ? `Pesquisa: "${busca}" · ` : '') + `${usuario.nome}`;
@@ -136,7 +139,8 @@ export function Cadastros({ entidade }: { entidade: string }) {
       <div className="filtros">
         <input type="search" value={busca} onChange={e => setBusca(e.target.value)} aria-label="Pesquisar"
           placeholder={entidade === 'fornecedores' ? 'Pesquisar por nome, fantasia, CNPJ, cidade, marca, vendedor, contato…' : 'Pesquisar em todos os campos…'} />
-        {busca && r.dados && <span className="muted small" style={{ alignSelf: 'center', minWidth: 0 }}>{linhas.length} de {r.dados.length}</span>}
+        {busca && r.dados && <span className="muted small" style={{ alignSelf: 'center', minWidth: 0 }}>{linhas.length} encontrado(s)</span>}
+        {qtdExcluidos > 0 && <label className="check" style={{ alignSelf: 'center' }}><input type="checkbox" checked={verExcluidos} onChange={e => setVerExcluidos(e.target.checked)} /> Mostrar excluídos ({qtdExcluidos})</label>}
         <span style={{ flex: 1, minWidth: 0 }} />
         <button className="btn" disabled={!linhas?.length} onClick={gerarPdf}>Relatório (PDF)</button>
         <button className="btn" disabled={!linhas?.length} onClick={gerarCsv}>Exportar CSV</button>
@@ -144,7 +148,8 @@ export function Cadastros({ entidade }: { entidade: string }) {
       <div className="card">
         <Carregando {...r}>{() => <Tabela linhas={linhas} onClick={l => setEditar(l)}
           vazio={busca ? 'Nenhum registro encontrado para a pesquisa' : undefined}
-          colunas={def.campos.filter(c => c.tabela).map((d, i) => ({ t: d.r, c: (l: any) => exibir(d, l), num: d.tipo === 'numero', movel: i < 2 }))} />}</Carregando>
+          colunas={def.campos.filter(c => c.tabela).map((d, i) => ({ t: d.r, num: d.tipo === 'numero', movel: i < 2,
+            c: (l: any) => i === 0 && !emUso(l) ? <span className="cad-excluido">{exibir(d, l)} <span className="pill p-cinza">excluído</span></span> : exibir(d, l) }))} />}</Carregando>
       </div>
       {editar && <FormCadastro entidade={entidade} titulo={def.titulo} def={def.campos} registro={editar} somenteLeitura={!pode(def.perm)}
         onFechar={() => setEditar(null)} onOk={() => { r.recarregar(); recarregarRef(); }} />}
@@ -195,12 +200,25 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
     if (d.c === 'grupo_pai_id') lista = lista.filter((g: any) => g.id !== registro.id);
     return lista;
   };
+  const excluido = registro.id && !emUso(registro);
+  const [confirmar, setConfirmar] = useState(false);
+  const reativar = async () => {
+    if (await acao.executar(() => api('POST', `/api/cadastros/${entidade}/${registro.id}/reativar`))) { avisar('Registro reativado'); onOk(); onFechar(); }
+  };
+  if (confirmar) return <ConfirmarExclusao entidade={entidade} registro={registro} onVoltar={() => setConfirmar(false)} onOk={() => { onOk(); onFechar(); }} />;
   return (
     <Modal largo titulo={somenteLeitura ? 'Consultar registro' : registro.id ? 'Editar registro' : 'Novo registro'} onFechar={onFechar} rodape={<>
+      {registro.id && !somenteLeitura && !excluido && <button className="btn perigo" disabled={acao.enviando} onClick={() => setConfirmar(true)}>Excluir</button>}
       {registro.id && <button className="btn" style={{ marginRight: 'auto' }} onClick={gerarFicha}>Relatório</button>}
       <button className="btn" onClick={onFechar}>{somenteLeitura ? 'Fechar' : 'Cancelar'}</button>
       {!somenteLeitura && <button className="btn primario" disabled={acao.enviando} onClick={salvar}>Salvar</button>}</>}>
       {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
+      {excluido && (
+        <div className="aviso atencao" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <span>Registro <strong>excluído</strong>: não aparece nas listas nem pode ser escolhido. O histórico continua com ele.</span>
+          {!somenteLeitura && <button className="btn" disabled={acao.enviando} onClick={reativar}>Reativar</button>}
+        </div>
+      )}
       <fieldset disabled={somenteLeitura} className="campos" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {def.map(d => { const k = chave(d); return (<Fragment key={k}>
           {d.secao && <h3 className="secao-form">{d.secao}</h3>}
@@ -210,7 +228,7 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
               : d.tipo === 'ref' ? <Opcoes itens={opcoesRef(d)} valor={v[k]} onChange={x => set(k, x)} rotulo={d.rotuloRef!} />
               : d.tipo === 'multi' || d.tipo === 'refmulti' ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                  {(d.tipo === 'multi' ? d.opcoes!.map(o => ({ id: o, nome: o })) : ref[d.ref!]).map((o: any) => (
+                  {(d.tipo === 'multi' ? d.opcoes!.map(o => ({ id: o, nome: o })) : ref[d.ref!].filter((o: any) => emUso(o) || (v[k] || []).includes(o.id))).map((o: any) => (
                     <label key={o.id} className="check"><input type="checkbox" checked={(v[k] || []).includes(o.id)}
                       onChange={e => set(k, e.target.checked ? [...(v[k] || []), o.id] : (v[k] || []).filter((x: string) => x !== o.id))} /> {d.tipo === 'multi' ? o.nome.toLowerCase() : d.rotuloRef!(o)}</label>
                   ))}
@@ -221,6 +239,34 @@ function FormCadastro({ entidade, titulo, def, registro, somenteLeitura, onFecha
         </Fragment>); })}
       </fieldset>
       {entidade === 'fabricantes' && <p className="muted small">Vínculos de marca só são adicionados (não removidos), para preservar modelos já cadastrados.</p>}
+    </Modal>
+  );
+}
+
+/** Confirmação de "Excluir": mostra onde o registro é usado; exclusão = inativação (histórico preservado). */
+function ConfirmarExclusao({ entidade, registro, onVoltar, onOk }: { entidade: string; registro: any; onVoltar: () => void; onOk: () => void }) {
+  const { avisar } = useApp();
+  const uso = useCarregar(() => api('GET', `/api/cadastros/${entidade}/${registro.id}/uso`), [entidade, registro.id]);
+  const acao = useAcao();
+  const nome = registro.nome_fantasia || registro.razao_social || registro.nome || registro.modelo || registro.descricao || registro.codigo;
+  const bloqueios = (uso.dados || []).filter((x: any) => x.bloqueia);
+  const excluir = async () => {
+    if (await acao.executar(() => api('POST', `/api/cadastros/${entidade}/${registro.id}/inativar`))) { avisar(`"${nome}" excluído`); onOk(); }
+  };
+  return (
+    <Modal titulo={`Excluir "${nome}"?`} onFechar={onVoltar} rodape={<>
+      <button className="btn" onClick={onVoltar}>Voltar</button>
+      <button className="btn primario perigo-forte" disabled={acao.enviando || uso.carregando || bloqueios.length > 0} onClick={excluir}>Excluir</button></>}>
+      {acao.erro && <div className="aviso erro" role="alert">{acao.erro}</div>}
+      <p style={{ marginTop: 0 }}>O registro <strong>não é apagado</strong>: fica inativo, some das listas e não pode mais ser escolhido em cadastros
+        novos. Equipamentos, chamados, custos, movimentações e relatórios que já usam o registro continuam iguais.
+        Dá para reativar depois, em "Mostrar excluídos".</p>
+      <Carregando {...uso}>{() => !uso.dados.length ? <div className="aviso ok">Nenhum uso em andamento encontrado.</div> : <>
+        {bloqueios.length > 0 && <div className="aviso erro" role="alert">Não é possível excluir enquanto houver os itens marcados abaixo. Resolva-os primeiro (por exemplo, transfira ou baixe os equipamentos).</div>}
+        <ul className="cad-uso">{uso.dados.map((x: any) => (
+          <li key={x.rotulo} className={x.bloqueia ? 'bloqueia' : ''}><strong>{x.qtd}</strong> {x.rotulo}{x.bloqueia && <span className="pill p-vermelho">impede</span>}</li>
+        ))}</ul>
+      </>}</Carregando>
     </Modal>
   );
 }
@@ -277,8 +323,8 @@ function FormUsuario({ u, onFechar, onOk }: any) {
         <Campo rotulo={u.id ? 'Nova senha (deixe vazio para manter)' : 'Senha inicial'} obrigatorio={!u.id}><input type="password" value={v.senha} onChange={set('senha')} autoComplete="new-password" /></Campo>
         <Campo rotulo="Situação"><label className="check"><input type="checkbox" checked={v.ativo} onChange={set('ativo')} /> Ativo (inativo mantém histórico e não acessa)</label></Campo>
         <Campo rotulo="Lojas de acesso (perfis de loja e técnicos)" largo>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>{ref.lojas.map((l: any) => (
-            <label key={l.id} className="check"><input type="checkbox" checked={v.lojas.includes(l.id)} onChange={e => setV({ ...v, lojas: e.target.checked ? [...v.lojas, l.id] : v.lojas.filter((x: string) => x !== l.id) })} /> {l.codigo}</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>{ref.lojas.filter((l: any) => emUso(l) || v.lojas.includes(l.id)).map((l: any) => (
+            <label key={l.id} className="check"><input type="checkbox" checked={v.lojas.includes(l.id)} onChange={e => setV({ ...v, lojas: e.target.checked ? [...v.lojas, l.id] : v.lojas.filter((x: string) => x !== l.id) })} /> {l.codigo}{emUso(l) ? '' : ' (excluída)'}</label>
           ))}</div>
         </Campo>
         <Campo rotulo="Pode alterar parâmetros (tela Parâmetros)" largo>

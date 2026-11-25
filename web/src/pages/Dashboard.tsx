@@ -22,7 +22,7 @@ export function Dashboard() {
           {ref.lojas.length > 1 && (
             <select aria-label="Loja" value={loja} onChange={e => setLoja(e.target.value)} style={{ width: 'auto' }}>
               <option value="">Todas as lojas</option>
-              {ref.lojas.filter((l: any) => l.tipo !== 'CD').map((l: any) => <option key={l.id} value={l.id}>{l.codigo} – {l.nome_fantasia}</option>)}
+              {ref.lojas.filter((l: any) => l.tipo !== 'CD' && (l.ativo !== false || l.id === loja)).map((l: any) => <option key={l.id} value={l.id}>{l.codigo} – {l.nome_fantasia}</option>)}
             </select>
           )}
           <select aria-label="Período" value={meses} onChange={e => setMeses(Number(e.target.value))} style={{ width: 'auto' }}>

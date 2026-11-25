@@ -371,5 +371,56 @@ await caso('configurações: permissão por grupo, token nunca devolvido, troca 
   assert.equal(r2.status, 200, JSON.stringify(r2.dados));
 });
 
+console.log('Excluir cadastro (inativar)');
+await caso('excluir cadastro: inativa, some da escolha, preserva quem já usa e reativa', async () => {
+  const sufixo = Date.now().toString(36).toUpperCase();
+  const g = await chamar(CO, 'POST', '/api/cadastros/grupos', { codigo: 'X' + sufixo.slice(-8), nome: 'Grupo teste ' + sufixo });
+  assert.equal(g.status, 200, JSON.stringify(g.dados));
+  const d = await chamar(CO, 'POST', '/api/cadastros/departamentos', { codigo: 'D' + sufixo.slice(-8), nome: 'Depto teste ' + sufixo, centro_custo: 'CC-T' });
+  assert.equal(d.status, 200, JSON.stringify(d.dados));
+
+  // modelo do grupo e equipamento no departamento, ainda ativos
+  const marca = ref.marcas[0], fab = ref.marcaFabricante.find(m => m.marca_id === marca.id).fabricante_id;
+  const prod = await chamar(CO, 'POST', '/api/cadastros/produtos', { descricao: 'Modelo teste', modelo: 'MT-' + sufixo, marca_id: marca.id, fabricante_id: fab, grupo_id: g.dados.id });
+  assert.equal(prod.status, 200, JSON.stringify(prod.dados));
+  const eq = await chamar(T, 'POST', '/api/equipamentos', { descricao: 'Equip teste exclusão', numero_serie: 'EXC-' + sufixo, produto_id: pdv.id,
+    loja_id: L01.id, cor: 'Preto', departamento_id: d.dados.id, valor_aquisicao: 100, data_aquisicao: '2026-01-10' });
+  assert.equal(eq.status, 200, JSON.stringify(eq.dados));
+
+  // técnico não exclui; uso mostra o modelo, sem bloqueio
+  assert.equal((await chamar(T, 'POST', `/api/cadastros/grupos/${g.dados.id}/inativar`)).status, 403);
+  const uso = await chamar(CO, 'GET', `/api/cadastros/grupos/${g.dados.id}/uso`);
+  assert.equal(uso.status, 200); assert.ok(uso.dados.some(x => x.rotulo.includes('modelo') && x.qtd === 1 && !x.bloqueia));
+
+  assert.equal((await chamar(CO, 'POST', `/api/cadastros/grupos/${g.dados.id}/inativar`)).status, 200);
+  assert.equal((await chamar(CO, 'POST', `/api/cadastros/departamentos/${d.dados.id}/inativar`)).status, 200);
+  const lista = (await chamar(CO, 'GET', '/api/cadastros/grupos')).dados;
+  assert.equal(lista.find(x => x.id === g.dados.id).ativo, false, 'continua existindo, inativo');
+  assert.equal((await chamar(T, 'GET', '/api/ref')).dados.grupos.find(x => x.id === g.dados.id).ativo, false);
+
+  // não pode ser escolhido de novo (banco recusa)
+  const novo = await chamar(CO, 'POST', '/api/cadastros/produtos', { descricao: 'Outro', modelo: 'MT2-' + sufixo, marca_id: marca.id, fabricante_id: fab, grupo_id: g.dados.id });
+  assert.equal(novo.status, 422); assert.match(novo.dados.erro, /foi excluído/);
+  const eq2 = await chamar(T, 'POST', '/api/equipamentos', { descricao: 'Outro', numero_serie: 'EXC2-' + sufixo, produto_id: pdv.id,
+    loja_id: L01.id, cor: 'Preto', departamento_id: d.dados.id, valor_aquisicao: 100, data_aquisicao: '2026-01-10' });
+  assert.equal(eq2.status, 422, JSON.stringify(eq2.dados));
+
+  // quem já usa continua funcionando: modelo e equipamento editáveis
+  assert.equal((await chamar(CO, 'PUT', `/api/cadastros/produtos/${prod.dados.id}`, { descricao: 'Modelo teste editado' })).status, 200);
+  assert.equal((await chamar(T, 'PUT', `/api/equipamentos/${eq.dados.id}`, { descricao: 'Equip teste exclusão (editado)' })).status, 200);
+
+  // reativa e volta a aceitar; deixa os dados de teste excluídos no fim
+  assert.equal((await chamar(CO, 'POST', `/api/cadastros/grupos/${g.dados.id}/reativar`)).status, 200);
+  const de_novo = await chamar(CO, 'POST', '/api/cadastros/produtos', { descricao: 'Outro', modelo: 'MT3-' + sufixo, marca_id: marca.id, fabricante_id: fab, grupo_id: g.dados.id });
+  assert.equal(de_novo.status, 200, JSON.stringify(de_novo.dados));
+  for (const id of [prod.dados.id, de_novo.dados.id]) await chamar(CO, 'POST', `/api/cadastros/produtos/${id}/inativar`);
+  assert.equal((await chamar(CO, 'POST', `/api/cadastros/grupos/${g.dados.id}/inativar`)).status, 200);
+});
+await caso('excluir loja com equipamentos é bloqueado', async () => {
+  const r = await chamar(CO, 'POST', `/api/cadastros/lojas/${L01.id}/inativar`);
+  assert.equal(r.status, 409, JSON.stringify(r.dados)); assert.match(r.dados.erro, /não pode ser excluído/);
+  assert.ok((await chamar(CO, 'GET', '/api/cadastros/lojas')).dados.find(l => l.id === L01.id).ativo, 'loja continua ativa');
+});
+
 console.log(`\n${ok} ok, ${falhas} falha(s)`);
 process.exit(falhas ? 1 : 0);

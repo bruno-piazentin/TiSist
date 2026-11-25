@@ -4,7 +4,7 @@ import { acaoOffline, api, baixarCsv, getComCache, ErroApi } from '../api';
 import { cache, uuid } from '../offline';
 import {
   Campo, Carregando, Link, Modal, Opcoes, Pill, PRIORIDADE, SITUACAO_CHAMADO, STATUS, TIPO_CUSTO, Tabela,
-  Voltar, data, dataHora, moeda, num, useAcao, useApp, useCarregar, useForm,
+  Voltar, data, dataHora, emUso, moeda, num, useAcao, useApp, useCarregar, useForm,
 } from '../ui';
 
 // ======================= LISTA =======================
@@ -332,8 +332,8 @@ function destinoDe(ref_: any, valor: string) {
 
 /** Destinatário do trânsito: fornecedor homologado ou outra unidade da rede. */
 function Destinatario({ e, ref_, valor, onChange }: { e: any; ref_: any; valor: string; onChange: (v: any) => void }) {
-  const fornecedores = ref_.fornecedores.filter((f: any) => f.homologado);
-  const unidades = ref_.lojas.filter((l: any) => e.local_tipo === 'FORNECEDOR' || l.id !== e.local_loja_id);
+  const fornecedores = ref_.fornecedores.filter((f: any) => f.homologado && emUso(f));
+  const unidades = ref_.lojas.filter((l: any) => emUso(l) && (e.local_tipo === 'FORNECEDOR' || l.id !== e.local_loja_id));
   return (
     <select value={valor} onChange={onChange} required>
       <option value="">Selecione…</option>

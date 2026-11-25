@@ -8,6 +8,19 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.5.0 (24/11/2026)
+
+- **Excluir nos cadastros base** (unidades, departamentos, grupos, marcas, fabricantes, modelos, fornecedores, serviços
+  e categorias de falha). A exclusão **não apaga** o registro: ele fica inativo, some das listas e das opções de escolha,
+  e não pode ser usado em cadastros novos. Equipamentos, chamados, custos, movimentações e relatórios que já o usam
+  continuam iguais.
+- Antes de excluir, a tela mostra onde o registro é usado. **Loja** com equipamentos ou PDVs ativos e **fornecedor** com
+  equipamentos, chamados ou orçamentos em andamento não podem ser excluídos até isso ser resolvido.
+- "Mostrar excluídos" na lista permite consultar e **Reativar** o registro. Exclusões e reativações ficam no histórico.
+- O banco recusa escolher um cadastro excluído por qualquer caminho (tela, sincronização offline ou importação).
+- Departamentos e modelos: os campos "Ativo" e "Ativo no catálogo" foram substituídos pelos botões Excluir/Reativar.
+- Banco: script `db/15_cadastro_inativo.sql` (aplicado automaticamente pelo `sisti atualizar`).
+
 ## 1.4.0 (24/11/2026)
 
 - **Configurações na tela Parâmetros:** endereço e token do Zabbix, intervalo e porta do monitor de PDVs passam a ser

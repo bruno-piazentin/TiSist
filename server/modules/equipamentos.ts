@@ -164,7 +164,7 @@ export function rotasEquipamentos(r: Router) {
     return tx(u.id, async db => {
       const prod = await db.one('SELECT id, marca_id, fabricante_id, grupo_id, ativo_catalogo, garantia_meses FROM produto WHERE id = $1', [d.produto_id]);
       if (!prod) throw new HttpError(422, 'Modelo inexistente');
-      if (!prod.ativo_catalogo) throw new HttpError(422, 'Modelo descontinuado não aceita equipamento novo');
+      if (!prod.ativo_catalogo) throw new HttpError(422, 'Modelo excluído (inativo) não aceita equipamento novo');
       let serie = d.numero_serie;
       let gerada = false;
       if (!serie) { serie = 'INT-' + String((await db.one("SELECT nextval('seq_codigo_interno') AS n")).n).padStart(6, '0'); gerada = true; }

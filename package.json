@@ -1,6 +1,6 @@
 {
   "name": "sisti",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "SisTI - Controle de manutenção de equipamentos e serviços de TI para rede de supermercados",
   "scripts": {

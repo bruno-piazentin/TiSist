@@ -14,3 +14,4 @@
 12_bloqueio_login.sql
 13_pdv.sql
 14_configuracao.sql
+15_cadastro_inativo.sql

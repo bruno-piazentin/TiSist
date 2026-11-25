@@ -171,6 +171,9 @@ export function Campo({ rotulo, obrigatorio, largo, children }: { rotulo: string
   );
 }
 
+/** Cadastro em uso (não excluído). "Excluir" nos cadastros base apenas inativa o registro. */
+export const emUso = (i: any) => i?.ativo !== false && i?.ativo_catalogo !== false;
+
 export function Opcoes({ itens, valor, onChange, vazio = 'Selecione…', rotulo, obrigatorio, disabled, id, nome }: {
   itens: any[]; valor: string; onChange: (v: string) => void; vazio?: string | false; rotulo: (i: any) => string; obrigatorio?: boolean; disabled?: boolean;
   id?: string; nome?: string;   // nome: rótulo para leitor de tela quando não há <Campo> (filtros)
@@ -180,7 +183,9 @@ export function Opcoes({ itens, valor, onChange, vazio = 'Selecione…', rotulo,
   return (
     <select id={id} aria-label={nomeAcessivel} value={valor ?? ''} onChange={e => onChange(e.target.value)} required={obrigatorio} disabled={disabled}>
       {vazio !== false && <option value="">{vazio}</option>}
-      {itens.map(i => <option key={i.id ?? i.valor} value={i.id ?? i.valor}>{rotulo(i)}</option>)}
+      {/* cadastro excluído (inativo) não aparece para escolha; se já é o valor gravado, continua visível e marcado */}
+      {itens.filter(i => emUso(i) || (i.id ?? i.valor) === valor).map(i =>
+        <option key={i.id ?? i.valor} value={i.id ?? i.valor}>{rotulo(i)}{emUso(i) ? '' : ' (excluído)'}</option>)}
     </select>
   );
 }

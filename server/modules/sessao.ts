@@ -97,18 +97,18 @@ export function rotasSessao(r: Router) {
     return tx(u.id, async db => {
       const [lojas, departamentos, grupos, marcas, fabricantes, marcaFabricante, produtos, fornecedores, servicos,
              categorias, perfis, transicoes, parametros] = await Promise.all([
-        db.query(`SELECT id, codigo, nome_fantasia, tipo, situacao, critica, area_m2, qtd_checkouts FROM loja
+        db.query(`SELECT id, codigo, nome_fantasia, tipo, situacao, critica, area_m2, qtd_checkouts, ativo FROM loja
                    WHERE $1 OR id = ANY($2::uuid[]) ORDER BY codigo`, [u.rede_toda, u.lojas]),
         db.query('SELECT id, codigo, nome, centro_custo, ativo FROM departamento ORDER BY nome'),
-        db.query('SELECT id, codigo, nome, grupo_pai_id, vida_util_meses FROM grupo_produto ORDER BY nome'),
-        db.query('SELECT id, nome FROM marca ORDER BY nome'),
-        db.query('SELECT id, razao_social FROM fabricante ORDER BY razao_social'),
+        db.query('SELECT id, codigo, nome, grupo_pai_id, vida_util_meses, ativo FROM grupo_produto ORDER BY nome'),
+        db.query('SELECT id, nome, ativo FROM marca ORDER BY nome'),
+        db.query('SELECT id, razao_social, ativo FROM fabricante ORDER BY razao_social'),
         db.query('SELECT marca_id, fabricante_id FROM marca_fabricante'),
         db.query(`SELECT id, descricao, modelo, marca_id, fabricante_id, grupo_id, cor_padrao, garantia_meses, ativo_catalogo
                     FROM produto ORDER BY modelo`),
-        db.query('SELECT id, razao_social, tipos, homologado, sla_orcamento_dias, sla_reparo_dias FROM fornecedor ORDER BY razao_social'),
-        db.query('SELECT id, tipo, descricao, unidade_cobranca, valor_referencia FROM servico ORDER BY descricao'),
-        db.query('SELECT id, codigo, nome, grupo_id FROM categoria_falha ORDER BY nome'),
+        db.query('SELECT id, razao_social, tipos, homologado, sla_orcamento_dias, sla_reparo_dias, ativo FROM fornecedor ORDER BY razao_social'),
+        db.query('SELECT id, tipo, descricao, unidade_cobranca, valor_referencia, ativo FROM servico ORDER BY descricao'),
+        db.query('SELECT id, codigo, nome, grupo_id, ativo FROM categoria_falha ORDER BY nome'),
         db.query('SELECT id, codigo, nome FROM perfil ORDER BY nome'),
         db.query('SELECT * FROM transicao_status'),
         db.query('SELECT chave, valor, descricao, grupo FROM parametro ORDER BY grupo, chave'),
@@ -154,9 +154,11 @@ export function rotasSessao(r: Router) {
                        [d.nome, d.email, d.login, d.perfil_id, d.departamento_id ?? null, d.alcada_max, d.ativo, d.telefone ?? null, d.senha, d.parametro_grupos]);
       if (!row) throw new HttpError(404, 'Usuário não encontrado');
       // usuario_loja: substitui o conjunto (tabela de vínculo; histórico fica no evento)
-      const antes = await db.query('SELECT loja_id::text FROM usuario_loja WHERE usuario_id = $1', [row.id]);
-      await db.query('INSERT INTO usuario_loja SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING', [row.id, d.lojas]);
-      const remover = antes.map((a: any) => a.loja_id).filter((l: string) => !d.lojas.includes(l));
+      const antes = (await db.query('SELECT loja_id::text FROM usuario_loja WHERE usuario_id = $1', [row.id])).map((a: any) => a.loja_id);
+      // só as lojas novas (uma loja já vinculada e depois inativada continua vinculada sem erro)
+      const novas = d.lojas.filter(l => !antes.includes(l));
+      if (novas.length) await db.query('INSERT INTO usuario_loja SELECT $1, unnest($2::uuid[]) ON CONFLICT DO NOTHING', [row.id, novas]);
+      const remover = antes.filter((l: string) => !d.lojas.includes(l));
       if (remover.length) {
         // a aplicação não tem DELETE; a remoção de vínculo usa função do administrador
         await db.query('SELECT fn_desvincular_lojas($1, $2::uuid[])', [row.id, remover]);
