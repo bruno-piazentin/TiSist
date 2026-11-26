@@ -11,7 +11,7 @@ const STATUS = ['ATIVO', 'AGUARDANDO_ORCAMENTO', 'EM_MANUTENCAO', 'TRANSITO', 'E
 
 // Campos editáveis livremente (loja, status e localização só por movimentação)
 const camposEditaveis = {
-  descricao: z.string().min(2), cor: z.string().min(1), departamento_id: uuid,
+  descricao: z.string().min(2), cor: opcional(z.string().trim().max(30)), departamento_id: uuid,
   patrimonio: opcional(z.string()), data_aquisicao: opcional(z.string().date()), nota_fiscal: opcional(z.string()),
   valor_aquisicao: opcional(z.coerce.number().min(0)), fornecedor_compra_id: opcional(uuid),
   garantia_inicio: opcional(z.string().date()), garantia_fim: opcional(z.string().date()),
@@ -188,7 +188,7 @@ export function rotasEquipamentos(r: Router) {
                  (SELECT CASE WHEN tipo = 'CD' THEN 'CD' ELSE 'LOJA' END::tipo_local FROM loja WHERE id = $10), $10,
                  $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
          RETURNING id, numero_serie, qr_code`,
-        [d.descricao, serie, gerada, prod.id, prod.marca_id, prod.fabricante_id, prod.grupo_id, d.cor, d.departamento_id, d.loja_id,
+        [d.descricao, serie, gerada, prod.id, prod.marca_id, prod.fabricante_id, prod.grupo_id, d.cor ?? null, d.departamento_id, d.loja_id,
          d.status, d.patrimonio, d.data_aquisicao, d.nota_fiscal, d.valor_aquisicao, d.fornecedor_compra_id, garantiaInicio ?? null,
          garantiaFim ?? null, d.garantia_tipo ?? (garantiaFim ? 'FABRICA' : null), d.setor_instalacao, d.ponto_instalacao, d.ip, d.mac,
          d.hostname, d.firmware_versao, d.reserva_id, d.responsavel_uso]);

@@ -148,7 +148,7 @@ export function EquipamentoNovo() {
           <Campo rotulo="Fabricante"><input disabled value={prod ? nome(ref.fabricantes, prod.fabricante_id, 'razao_social') : ''} /></Campo>
           <Campo rotulo="Grupo"><input disabled value={prod ? nome(ref.grupos, prod.grupo_id) : ''} /></Campo>
           <Campo rotulo="Número de série"><input value={v.numero_serie} onChange={set('numero_serie')} placeholder="Vazio = código interno" /></Campo>
-          <Campo rotulo="Cor" obrigatorio><input required value={v.cor} onChange={set('cor')} /></Campo>
+          <Campo rotulo="Cor"><input value={v.cor} onChange={set('cor')} maxLength={30} /></Campo>
           <Campo rotulo="Loja vinculada" obrigatorio><Opcoes obrigatorio itens={ref.lojas.filter((l: any) => l.situacao !== 'FECHADA')} valor={v.loja_id} onChange={set('loja_id')} rotulo={l => `${l.codigo} – ${l.nome_fantasia}`} /></Campo>
           <Campo rotulo="Departamento" obrigatorio><Opcoes obrigatorio itens={ref.departamentos.filter((d: any) => d.ativo)} valor={v.departamento_id} onChange={set('departamento_id')} rotulo={d => d.nome} /></Campo>
           <Campo rotulo="Status inicial" obrigatorio>
@@ -272,7 +272,7 @@ export function EquipamentoDetalhe({ id }: { id: string }) {
               <div className="card"><h2>Identificação</h2><dl className="dl">
                 <dt>Descrição</dt><dd>{e.descricao}</dd><dt>Nº de série</dt><dd className="mono">{e.numero_serie}</dd><dt>Patrimônio</dt><dd>{e.patrimonio || '—'}</dd>
                 <dt>QR code</dt><dd className="mono">{e.qr_code}</dd><dt>Modelo</dt><dd>{e.modelo} – {e.produto_descricao}</dd><dt>Marca</dt><dd>{e.marca}</dd>
-                <dt>Fabricante</dt><dd>{e.fabricante}</dd><dt>Grupo</dt><dd>{e.grupo}</dd><dt>Cor</dt><dd>{e.cor}</dd>
+                <dt>Fabricante</dt><dd>{e.fabricante}</dd><dt>Grupo</dt><dd>{e.grupo}</dd><dt>Cor</dt><dd>{e.cor || '—'}</dd>
                 <dt>Loja vinculada</dt><dd>{e.loja_codigo} – {e.loja}</dd><dt>Departamento</dt><dd>{e.departamento}</dd>
               </dl></div>
               <div className="card"><h2>Aquisição, garantia e rede</h2><dl className="dl">

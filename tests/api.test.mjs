@@ -68,6 +68,13 @@ await caso('sem série gera código interno', async () => {
     loja_id: L01.id, cor: 'Preto', departamento_id: caixa.id });
   assert.equal(r.status, 200); assert.match(r.dados.numero_serie, /^INT-\d{6}$/);
 });
+await caso('cor é opcional (vazia vira nula)', async () => {
+  const r = await chamar(T, 'POST', '/api/equipamentos', { descricao: 'Sem cor', produto_id: pdv.id, numero_serie: 'SEMCOR-' + Date.now(),
+    loja_id: L01.id, cor: '', departamento_id: caixa.id });
+  assert.equal(r.status, 200, JSON.stringify(r.dados));
+  const det = await chamar(T, 'GET', '/api/equipamentos/' + r.dados.id);
+  assert.equal(det.status, 200); assert.equal(det.dados.cor, null);
+});
 await caso('loja vazia é recusada', async () => {
   const r = await chamar(T, 'POST', '/api/equipamentos', { descricao: 'Sem loja', produto_id: pdv.id, cor: 'Preto', departamento_id: caixa.id });
   assert.equal(r.status, 400);

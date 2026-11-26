@@ -8,6 +8,11 @@ Cada versão tem um número **X.Y.Z**:
 A versão instalada aparece no menu do usuário (canto superior direito) e no comando `sisti versao`.
 Como publicar uma versão: veja "Publicar uma versão" em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
 
+## 1.5.2 (26/11/2026)
+
+- **Cor do equipamento deixa de ser obrigatória** no cadastro e na edição. Sem cor, a ficha mostra "—".
+- Banco: script `db/16_cor_opcional.sql` (aplicado automaticamente pelo `sisti atualizar`).
+
 ## 1.5.1 (25/11/2026)
 
 - **Ícone do SisTI para atalho no Windows** (`sisti.ico`, com versão própria para tamanhos pequenos) e script

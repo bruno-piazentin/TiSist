@@ -15,3 +15,4 @@
 13_pdv.sql
 14_configuracao.sql
 15_cadastro_inativo.sql
+16_cor_opcional.sql
